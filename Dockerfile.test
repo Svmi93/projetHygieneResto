@@ -1,0 +1,3 @@
+FROM alpine:latest
+COPY package.json package-lock.json /app/
+RUN ls -l /app/

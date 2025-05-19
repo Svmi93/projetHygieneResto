@@ -3,8 +3,8 @@ version: '3.8'
 services:
   app:
     build:
-      context: ./hygieneresto-backend/backend
-      dockerfile: Dockerfile
+      context: ./hygieneresto-backend/backend  # La racine du projet est le contexte
+      dockerfile: Dockerfile # Chemin vers le Dockerfile
     ports:
       - "${PORT}:${PORT}"
     environment:
@@ -19,7 +19,7 @@ services:
       - db
     restart: always
     volumes:
-      - ./hygieneresto-backend/backend:/usr/src/app
+      - ./backend:/usr/src/app # Monte le dossier backend dans le conteneur
     networks:
       - app-network
 
