@@ -2,11 +2,13 @@ version: '3.8'
 
 services:
   app:
-    build: .  # Assurez-vous que votre Dockerfile est à la racine du projet
+    build:
+      context: ./hygieneresto-backend/backend
+      dockerfile: Dockerfile
     ports:
-      - "${PORT}:${PORT}" # Expose le port spécifié dans votre .env (par défaut 5000)
+      - "${PORT}:${PORT}"
     environment:
-      NODE_ENV: ${NODE_ENV:-developpement} # Utilise 'developpement' par défaut si non défini
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: ${PORT:-5000}
       HOST: ${HOST:-localhost}
       USERNAME: ${USERNAME:-rootttest}
@@ -17,22 +19,22 @@ services:
       - db
     restart: always
     volumes:
-      - ./app:/usr/src/app # Monte le répertoire de l'application dans le conteneur
+      - ./hygieneresto-backend/backend:/usr/src/app
     networks:
       - app-network
 
   db:
-    image: mysql:5.7 # Vous pouvez ajuster la version si nécessaire
+    image: mysql:5.7
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${PASSWORD:-root1234} # Utilise la valeur par défaut si non définie
+      MYSQL_ROOT_PASSWORD: ${PASSWORD:-root1234}
       MYSQL_DATABASE: ${DATABASE:-hygieneresto_db}
       MYSQL_USER: ${USERNAME:-rootttest}
       MYSQL_PASSWORD: ${PASSWORD:-root1234}
     ports:
-      - "${DB_PORT}:${DB_PORT}" # Expose le port de la base de données (par défaut 8889)
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
-      - db-data:/var/lib/mysql # Volume pour persister les données de la base de données
+      - db-data:/var/lib/mysql
     networks:
       - app-network
 
