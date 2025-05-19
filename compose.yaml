@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build: .  # Assurez-vous que votre Dockerfile est à la racine du projet
+    ports:
+      - "${PORT}:${PORT}" # Expose le port spécifié dans votre .env (par défaut 5000)
+    environment:
+      NODE_ENV: ${NODE_ENV:-developpement} # Utilise 'developpement' par défaut si non défini
+      PORT: ${PORT:-5000}
+      HOST: ${HOST:-localhost}
+      USERNAME: ${USERNAME:-rootttest}
+      PASSWORD: ${PASSWORD:-root1234}
+      DATABASE: ${DATABASE:-hygieneresto_db}
+      DB_PORT: ${DB_PORT:-8889}
+    depends_on:
+      - db
+    restart: always
+    volumes:
+      - ./app:/usr/src/app # Monte le répertoire de l'application dans le conteneur
+    networks:
+      - app-network
+
+  db:
+    image: mysql:5.7 # Vous pouvez ajuster la version si nécessaire
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PASSWORD:-root1234} # Utilise la valeur par défaut si non définie
+      MYSQL_DATABASE: ${DATABASE:-hygieneresto_db}
+      MYSQL_USER: ${USERNAME:-rootttest}
+      MYSQL_PASSWORD: ${PASSWORD:-root1234}
+    ports:
+      - "${DB_PORT}:${DB_PORT}" # Expose le port de la base de données (par défaut 8889)
+    volumes:
+      - db-data:/var/lib/mysql # Volume pour persister les données de la base de données
+    networks:
+      - app-network
+
+volumes:
+  db-data:
+
+networks:
+  app-network:
+    driver: bridge
