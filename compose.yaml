@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -14,12 +12,12 @@ services:
       USERNAME: ${USERNAME:-rootttest}
       PASSWORD: ${PASSWORD:-root1234}
       DATABASE: ${DATABASE:-hygieneresto_db}
-      DB_PORT: ${DB_PORT:-8889}
+      DB_PORT: ${DB_PORT:-3306} # MySQL utilise 3306 par défaut
     depends_on:
       - db
     restart: always
     volumes:
-      - ./backend:/usr/src/app # Monte le dossier backend dans le conteneur
+      - ./hygieneresto-backend/backend:/usr/src/app # Monte le dossier backend dans le conteneur
     networks:
       - app-network
 
@@ -32,7 +30,7 @@ services:
       MYSQL_USER: ${USERNAME:-rootttest}
       MYSQL_PASSWORD: ${PASSWORD:-root1234}
     ports:
-      - "${DB_PORT}:${DB_PORT}"
+      - "${DB_PORT}:3306" # Expose le port 3306 de MySQL
     volumes:
       - db-data:/var/lib/mysql
     networks:
