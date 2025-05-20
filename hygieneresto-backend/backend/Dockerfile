@@ -1,12 +1,23 @@
-# syntax=docker/dockerfile:1
-ARG NODE_VERSION=18
-FROM node:${NODE_VERSION}-alpine
-ENV NODE_ENV=developpement
+# Use a specific Node.js base image
+FROM node:18-alpine
+
+# Set the working directory inside the container
 WORKDIR /usr/src/app
-COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
-COPY src ./src 
-# COPY . . # Supprimez ou commentez cette ligne
+
+# Copy package.json and package-lock.json (if exists)
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of your application code
+COPY src ./src
+COPY .env ./.env 
+
+# Expose the port your app runs on
 EXPOSE 5001
-CMD [ "npm", "start" ] # This now executes the 'start' script from package.json
+
+# Define the entrypoint using Node directly
+ENTRYPOINT ["node"]
+# Define the command to execute
+CMD ["src/server.js"]
