@@ -1,6 +1,6 @@
 import React from 'react';
 import RegisterPage from './components/RegisterPage'; // Ajustez le chemin si nécessaire
-//import './App.css'; // Si vous avez des styles globaux
+//import 'app.css'; // Si vous avez des styles globaux
 
 function App() {
   return (
