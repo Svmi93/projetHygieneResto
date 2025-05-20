@@ -125,9 +125,7 @@ backend/
     ├── config/
     │   └── db.js         # Configuration de la connexion à la base de données
     └── server.js         # Configuration du serveur Express et des routes
-    # Ajoutez ici d'autres dossiers comme 'routes/', 'controllers/', 'models/', 'middlewares/' etc.
-8. API Endpoints (À Définir)
-Cette section est cruciale et devra être complétée au fur et à mesure que tu développes ton API. Elle décrira toutes les routes disponibles, leurs méthodes HTTP, les paramètres attendus, et les réponses possibles.
+    
 
 Exemple (à adapter) :
 
@@ -145,32 +143,4 @@ GET /api/users/:id (Protégée par JWT)
 Description : Récupère les informations d'un utilisateur par son ID.
 Requête : Headers: Authorization: Bearer <token>
 Réponse : {"id": ..., "username": "...", "email": "..."}
-... (Ajoute d'autres sections pour tes entités : produits, commandes, etc.)
-9. Licence
-(Ajoute ta licence ici, par exemple MIT, si applicable)
 
-MIT License
-
-Copyright (c) [Année] [Ton Nom ou Nom de l'Organisation]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-Prochaines étapes pour toi :
-Personnalise le README.md : Ajoute des détails spécifiques à ton projet, comme les entités principales de ton application (Produits d'hygiène, Utilisateurs, etc.).
-Complète la section "API Endpoints" : C'est essentiel pour documenter comment ton API fonctionne.
-Commence à développer tes routes et contrôleurs dans backend/src/ pour implémenter la logique de ton API.
