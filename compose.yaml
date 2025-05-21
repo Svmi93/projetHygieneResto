@@ -1,3 +1,5 @@
+
+
 services:
   # Service for your Node.js API
   api:
@@ -17,6 +19,9 @@ services:
       PASSWORD: ${PASSWORD}
       DATABASE: ${DATABASE}
       DB_PORT: 3306 # IMPORTANT: This is the INTERNAL port of the MySQL container (standard 3306)
+      JWT_SECRET: ${JWT_SECRET} # <--- ADDED THIS LINE EXPLICITLY
+    env_file: # <--- ADDED THIS BLOCK
+      - ./backend/.env # Path to your .env file relative to docker-compose.yml
     depends_on:
       - db # The API depends on the 'db' (database) service
     restart: always
@@ -31,7 +36,7 @@ services:
 
   # Service for the MySQL database
   db:
-    image: mysql:5.7 # Use the official MySQL 5.7 image
+    image: mysql:5.7 # Using MySQL 5.7 as specified
     container_name: hygieneresto_db
     restart: always
     environment:
@@ -41,7 +46,7 @@ services:
       MYSQL_USER: ${USERNAME}
       MYSQL_PASSWORD: ${PASSWORD}
     ports:
-      - "${DB_PORT}:3306" # Maps the host port (e.g., 8889) to the container DB port 3306
+      - "${DB_PORT}:3306" # Maps the host port (e.g., 8889 from .env) to the container DB port 3306
     volumes:
       # Persistent volume for database data
       - db_data:/var/lib/mysql

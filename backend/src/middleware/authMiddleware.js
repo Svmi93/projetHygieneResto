@@ -1,11 +1,10 @@
 // backend/src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
-const { jwtSecret } = require('../config/jwt'); // Assure-toi que cela correspond à ton fichier secret
+const { jwtSecret } = require('../config/jwt');
 
 exports.authenticateToken = (req, res, next) => {
-    // Récupère le token du header d'autorisation
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: Bearer TOKEN
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (token == null) {
         return res.status(401).json({ message: 'No token provided. Access denied.' });
@@ -16,8 +15,8 @@ exports.authenticateToken = (req, res, next) => {
             console.error('Token verification error:', err.message);
             return res.status(403).json({ message: 'Invalid or expired token.' });
         }
-        req.user = user; // Stocke les informations de l'utilisateur (id, role) dans la requête
-        next(); // Passe au prochain middleware/gestionnaire de route
+        req.user = user; // { id: userId, role: userRole }
+        next();
     });
 };
 
