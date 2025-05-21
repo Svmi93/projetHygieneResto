@@ -1,3 +1,4 @@
+// frontend/src/pages/TemperatureRecordsPage.jsx
 import React, { useState, useEffect } from 'react';
 import './TemperatureRecordsPage.css'; // Importe le CSS spécifique à cette page
 // Assure-toi que le chemin est correct : un niveau au-dessus (..) puis dans 'services'
@@ -167,16 +168,8 @@ const TemperatureRecordsPage = () => {
                         </thead>
                         <tbody>
                             {records.map((rec) => (
-                                // Utilise rec.id comme clé unique.
-                                // C'est crucial pour la performance et la stabilité de React.
-                                // Assure-toi que ton backend retourne bien l'ID après un POST.
-                                <tr key={rec.id}>
-                                    <td>{rec.type}</td>
-                                    <td>{rec.location}</td>
-                                    <td>{rec.temperature}</td>
-                                    <td>{new Date(rec.timestamp).toLocaleString()}</td>
-                                    <td>{rec.notes || '-'}</td> {/* Affiche '-' si pas de notes */}
-                                </tr>
+                                // Correction pour l'erreur d'espace blanc : les <td> sont sur la même ligne que <tr>
+                                <tr key={rec.id}><td>{rec.type}</td><td>{rec.location}</td><td>{rec.temperature}</td><td>{new Date(rec.timestamp).toLocaleString()}</td><td>{rec.notes || '-'}</td></tr>
                             ))}
                         </tbody>
                     </table>

@@ -1,0 +1,175 @@
+/* frontend/src/components/UserManagement.css */
+.user-management-container {
+    padding: 20px;
+}
+
+.user-management-container h2,
+.user-management-container h3 {
+    color: #343a40;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.add-user-section form,
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap; /* Permet le passage à la ligne sur petits écrans */
+}
+
+.form-row input,
+.form-row select,
+.form-group input,
+.form-group select {
+    flex: 1; /* Chaque champ prend une part égale de l'espace */
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 1em;
+    min-width: 180px; /* Largeur minimale pour éviter des champs trop petits */
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.add-button, .save-button, .cancel-button, .edit-button, .delete-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    margin-left: 5px; /* Pour espacer les boutons */
+}
+
+.add-button {
+    background-color: #28a745;
+    color: white;
+}
+
+.add-button:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+}
+
+.users-list-section table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.users-list-section th,
+.users-list-section td {
+    border: 1px solid #dee2e6;
+    padding: 12px 15px;
+    text-align: left;
+}
+
+.users-list-section th {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+.users-list-section tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.users-list-section tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.actions-cell button {
+    margin-right: 8px;
+}
+
+.edit-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.edit-button:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.delete-button {
+    background-color: #dc3545;
+    color: white;
+}
+
+.delete-button:hover {
+    background-color: #c82333;
+    transform: translateY(-2px);
+}
+
+/* Styles pour la modale d'édition (réutilise les styles globaux de modale de App.jsx si nécessaire) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    position: relative;
+    width: 90%;
+    max-width: 600px; /* Plus large pour le formulaire d'édition */
+    max-height: 90vh; /* Empêche la modale d'être trop haute */
+    overflow-y: auto; /* Ajoute un scroll si le contenu est trop grand */
+}
+
+.modal-content h3 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #343a40;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.save-button {
+    background-color: #17a2b8; /* Info blue */
+    color: white;
+}
+
+.save-button:hover {
+    background-color: #138496;
+}
+
+.cancel-button {
+    background-color: #6c757d; /* Secondary gray */
+    color: white;
+}
+
+.cancel-button:hover {
+    background-color: #5a6268;
+}

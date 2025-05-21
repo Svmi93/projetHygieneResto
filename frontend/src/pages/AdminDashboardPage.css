@@ -1,0 +1,72 @@
+/* frontend/src/pages/AdminDashboardPage.css */
+.admin-dashboard-container {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.admin-dashboard-container h1 {
+    color: #343a40;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+}
+
+.admin-nav {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+.admin-nav button {
+    background-color: #e2e6ea;
+    border: none;
+    padding: 12px 25px;
+    margin: 0 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+    color: #495057;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.admin-nav button:hover {
+    background-color: #d1d4d7;
+}
+
+.admin-nav button.active {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.admin-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Base styles for error/loading messages */
+.loading-message, .error-message {
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.loading-message {
+    background-color: #e0f7fa;
+    color: #007bff;
+}
+
+.error-message {
+    background-color: #ffebee;
+    color: #d32f2f;
+    border: 1px solid #d32f2f;
+}
