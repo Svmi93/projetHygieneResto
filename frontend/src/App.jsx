@@ -1,39 +1,46 @@
 // frontend/src/App.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Ajout de useEffect
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
-import LoginPage from './pages/LoginPage'; // On va créer ce composant
-import './App.css'; // Pour les styles globaux
-import './components/Header.css'; // Pour les styles du header
+import LoginPage from './pages/LoginPage';
+import AdminDashboardPage from './pages/AdminDashboardPage'; // <-- NOUVEAU
+import './App.css';
+import './components/Header.css';
 
 function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // État pour savoir si l'utilisateur est connecté
-  const [userRole, setUserRole] = useState(null); // Pour stocker le rôle de l'utilisateur
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
-  // Fonction pour gérer la connexion réussie
+  // Vérifier le statut de connexion au chargement de l'application
+  useEffect(() => {
+    const token = localStorage.getItem('userToken');
+    const role = localStorage.getItem('userRole');
+    if (token && role) {
+      setIsLoggedIn(true);
+      setUserRole(role);
+    }
+  }, []); // S'exécute une seule fois au montage du composant
+
   const handleLoginSuccess = (role) => {
     setIsLoggedIn(true);
     setUserRole(role);
-    setIsLoginModalOpen(false); // Ferme la modale après connexion
-    // Optionnel: stocker le token et le rôle dans le localStorage pour persistance
-    // localStorage.setItem('userToken', token);
-    // localStorage.setItem('userRole', role);
+    setIsLoginModalOpen(false);
   };
 
-  // Fonction pour gérer la déconnexion
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole(null);
-    // localStorage.removeItem('userToken');
-    // localStorage.removeItem('userRole');
-    // Redirection vers la page d'accueil ou de connexion si nécessaire
+    localStorage.removeItem('userToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userId');
+    // Optionnel: rediriger vers la page d'accueil ou de login
+    // navigate('/');
   };
 
   return (
     <Router>
       <div className="app-container">
-        {/* Header de l'application */}
         <header className="app-header">
           <nav>
             <Link to="/" className="app-title">HygieneResto App</Link>
@@ -41,11 +48,11 @@ function App() {
               {isLoggedIn ? (
                 <>
                   <span>Bonjour {userRole}!</span>
-                  <button onClick={handleLogout} className="logout-button">Déconnexion</button>
                   {userRole === 'super_admin' && (
                     <Link to="/admin-dashboard" className="admin-dashboard-link">Tableau de bord Admin</Link>
                   )}
                   {/* Ajouter d'autres liens spécifiques aux rôles si nécessaire */}
+                  <button onClick={handleLogout} className="logout-button">Déconnexion</button>
                 </>
               ) : (
                 <button onClick={() => setIsLoginModalOpen(true)} className="login-button">
@@ -56,7 +63,6 @@ function App() {
           </nav>
         </header>
 
-        {/* Formulaire de connexion en tant que modale */}
         {isLoginModalOpen && (
           <div className="modal-overlay">
             <div className="modal-content">
@@ -66,15 +72,20 @@ function App() {
           </div>
         )}
 
-        {/* Routes de l'application */}
         <main className="app-main-content">
           <Routes>
             <Route path="/" element={<TemperatureRecordsPage />} />
-            {/* Plus tard, on ajoutera une route pour le tableau de bord admin */}
-            {userRole === 'super_admin' && (
-                <Route path="/admin-dashboard" element={<div>Tableau de bord Super Admin (à construire)</div>} />
+            {/* Protéger la route AdminDashboardPage */}
+            {/* On la rend accessible uniquement si userRole est super_admin */}
+            {isLoggedIn && userRole === 'super_admin' ? (
+              <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+            ) : (
+              // Rediriger vers la page d'accueil si pas super_admin (ou afficher un message d'accès refusé)
+              // Pour un cas simple, on peut juste ne pas définir la route s'il n'est pas admin
+              // L'AdminDashboardPage elle-même redirigera aussi si le role ne correspond pas
+              <Route path="/admin-dashboard" element={<TemperatureRecordsPage />} /> // Redirige par défaut
             )}
-            {/* Si tu veux une page de login dédiée au lieu d'une modale */}
+            {/* Si tu veux une page de login dédiée au lieu d'une modale, décommente: */}
             {/* <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} /> */}
           </Routes>
         </main>
