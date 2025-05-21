@@ -1,4 +1,10 @@
-require('dotenv').config();
+const express = require('express');
+const dotenv = require('dotenv');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const mysql = require('mysql2/promise');
+
+dotenv.config();
 
 console.log('--- .env variables ---');
 console.log('HOST:', process.env.HOST);
@@ -7,40 +13,31 @@ console.log('PASSWORD:', process.env.PASSWORD ? 'Loaded' : 'NOT LOADED or EMPTY'
 console.log('DATABASE:', process.env.DATABASE);
 console.log('DB_PORT:', process.env.DB_PORT);
 console.log('--------------------');
-const { getConnection } = require('./config/db'); // Assurez-vous que ce chemin est correct
 
-const express = require('express'); // Déclaration de express AU DÉBUT
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const mysql = require('mysql2/promise'); // Vous utilisez mysql2, donc gardez-le
+const { getConnection } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const temperatureRoutes = require('./routes/temperatureRoutes');
+// --- REMOVE OR COMMENT OUT THIS LINE IF YOU DON'T HAVE authRoutes.js ---
+// const authRoutes = require('./routes/authRoutes');
+
 app.use(express.json());
 
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
+  optionsSuccessStatus: 204
 }));
 
-// Configuration de la base de données MySQL (utilisation de la configuration importée)
-let pool;
+app.use('/api', temperatureRoutes);
+// --- REMOVE OR COMMENT OUT THIS LINE IF YOU DON'T HAVE authRoutes.js ---
+// app.use('/api/auth', authRoutes);
 
-async function initializeDatabase() {
-  try {
-    pool = await getConnection();
-    console.log('Connexion à la base de données MySQL réussie via config/db !');
-    // Vous n'avez pas besoin de tester la connexion ici si getConnection le fait déjà.
-  } catch (error) {
-    console.error('Erreur lors de la connexion à la base de données :', error);
-    process.exit(1);
-  }
-}
 
-initializeDatabase();
-
+// Middleware de validation de mot de passe (pour l'enregistrement) - Keep this here if you keep the register route in server.js
 const validatePassword = (req, res, next) => {
   const { password } = req.body;
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`])[A-Za-z\d!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`]{14,}$/;
@@ -51,6 +48,7 @@ const validatePassword = (req, res, next) => {
   next();
 };
 
+// Route d'enregistrement des utilisateurs - Keep this here if you keep the register route in server.js
 app.post('/api/auth/register', validatePassword, async (req, res) => {
   const {
     nomEntreprise, nomClient, prenomClient, email, telephone,
@@ -58,6 +56,7 @@ app.post('/api/auth/register', validatePassword, async (req, res) => {
   } = req.body;
 
   try {
+    const pool = await getConnection(); // Make sure pool is accessible
     const [rows] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
     if (rows.length > 0) {
       return res.status(409).json({ message: 'Cet email est déjà enregistré.' });
@@ -79,10 +78,29 @@ app.post('/api/auth/register', validatePassword, async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('API HygièneResto en cours d\'exécution !');
+
+app.get('/api', (req, res) => {
+  res.status(200).json({ message: 'API HygièneResto fonctionne !' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
+app.get('/', (req, res) => {
+  res.send('API HygièneResto est démarrée !');
 });
+
+let pool; // Declared here for global access if needed
+
+async function initializeDatabaseAndStartServer() {
+  try {
+    pool = await getConnection();
+    console.log('Connexion à la base de données MySQL réussie via config/db !');
+
+    app.listen(PORT, () => {
+      console.log(`Serveur démarré sur le port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Erreur lors de la connexion à la base de données ou du démarrage du serveur :', error);
+    process.exit(1);
+  }
+}
+
+initializeDatabaseAndStartServer();

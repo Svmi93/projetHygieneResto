@@ -1,0 +1,135 @@
+/* Styles généraux pour la page de relevés de température */
+.temperature-page {
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 900px; /* Limite la largeur du contenu */
+    margin: 0 auto; /* Centre le contenu horizontalement */
+    background-color: #f0f2f5; /* Couleur de fond légère */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.temperature-page h1, .temperature-page h2 {
+    color: #2c3e50; /* Couleur de titre plus foncée */
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Sections pour l'ajout et la liste des relevés */
+.add-record-section, .records-list-section {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+
+/* Styles pour les groupes de formulaire (label + input) */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block; /* Chaque label sur une nouvelle ligne */
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #34495e; /* Couleur de texte plus lisible */
+    font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: calc(100% - 22px); /* Prend presque toute la largeur, ajusté pour le padding */
+    padding: 11px;
+    border: 1px solid #dcdfe6; /* Bordure plus douce */
+    border-radius: 5px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #4a90e2; /* Bordure bleue au focus */
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2); /* Ombre légère au focus */
+    outline: none; /* Supprime l'outline par défaut du navigateur */
+}
+
+.form-group textarea {
+    resize: vertical; /* Permet uniquement le redimensionnement vertical */
+    min-height: 80px; /* Hauteur minimale pour la zone de texte */
+}
+
+/* Bouton de soumission */
+button[type="submit"] {
+    background-color: #28a745; /* Vert pour succès */
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    width: auto; /* Ajuste la largeur au contenu */
+    display: block; /* Prend toute la largeur disponible pour être centré */
+    margin: 20px auto 0 auto; /* Centre le bouton */
+}
+
+button[type="submit"]:hover {
+    background-color: #218838; /* Vert plus foncé au survol */
+    transform: translateY(-2px); /* Effet de léger soulèvement */
+}
+
+button[type="submit"]:active {
+    transform: translateY(0); /* Retour à la position normale au clic */
+}
+
+/* Styles pour le tableau des relevés */
+.records-list-section table {
+    width: 100%;
+    border-collapse: collapse; /* Supprime l'espace entre les bordures de cellules */
+    margin-top: 25px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    overflow: hidden; /* Assure que les coins arrondis du tableau sont visibles */
+}
+
+.records-list-section th,
+.records-list-section td {
+    border: 1px solid #ebf0f5; /* Bordures de cellules plus claires */
+    padding: 12px;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+.records-list-section th {
+    background-color: #e9ecef; /* Fond d'en-tête de tableau */
+    color: #34495e;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Message quand il n'y a pas de relevés */
+.records-list-section p {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 15px;
+    background-color: #fdfdfd;
+    border-radius: 5px;
+    border: 1px dashed #e0e0e0;
+}
+
+/* Message d'erreur */
+.error-message {
+    color: #dc3545; /* Rouge vif pour les erreurs */
+    background-color: #f8d7da; /* Fond rosé */
+    border: 1px solid #f5c6cb; /* Bordure rouge clair */
+    padding: 12px 20px;
+    border-radius: 6px;
+    margin-bottom: 25px;
+    font-weight: bold;
+    text-align: center;
+}
