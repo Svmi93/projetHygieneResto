@@ -1,3 +1,4 @@
+// backend/src/routes/temperatureRoutes.js
 const express = require('express');
 const router = express.Router();
 const { getConnection } = require('../config/db');
@@ -7,8 +8,9 @@ router.get('/temperatures', async (req, res) => {
   try {
     const pool = await getConnection();
     // MODIFIÉ: Inclut maintenant 'user_id' dans la sélection
+    // Correction: Utilise le nom de table correct 'temperature_records'
     const [rows] = await pool.execute(
-      'SELECT id, type, location, temperature, timestamp, notes, created_at, user_id FROM temperatures ORDER BY timestamp DESC'
+      'SELECT id, type, location, temperature, timestamp, notes, created_at, user_id FROM temperature_records ORDER BY timestamp DESC'
     );
     res.json(rows);
   } catch (error) {
@@ -30,10 +32,11 @@ router.post('/temperatures', async (req, res) => {
 
   try {
     const pool = await getConnection();
+    // Correction: Utilise le nom de table correct 'temperature_records'
     const [result] = await pool.execute(
       // MODIFIÉ: Ajout de user_id à l'insertion. Pour l'instant, on insère NULL.
       // Quand l'authentification sera faite, on passera le vrai user_id ici.
-      'INSERT INTO temperatures (type, location, temperature, timestamp, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO temperature_records (type, location, temperature, timestamp, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)',
       [type, location, temperature, timestamp, notes, null] // null pour user_id temporairement
     );
 
