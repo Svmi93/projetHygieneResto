@@ -1,0 +1,121 @@
+/* frontend/src/components/Header.css */
+.app-header {
+  background-color: #282c34;
+  padding: 15px 30px;
+  color: white;
+  border-bottom: 3px solid #61dafb;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.app-header nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px; /* Largeur maximale pour le contenu du header */
+  margin: 0 auto;
+}
+
+.app-title {
+  color: #61dafb;
+  font-size: 1.8em;
+  font-weight: bold;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.app-title:hover {
+  color: #a7f7ff;
+}
+
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* Espace entre les boutons et le texte */
+}
+
+.login-button,
+.logout-button,
+.admin-dashboard-link {
+  background-color: #61dafb;
+  color: #282c34;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: bold;
+  text-decoration: none; /* Pour le Link */
+  display: inline-flex; /* Pour le Link */
+  align-items: center; /* Pour le Link */
+  justify-content: center; /* Pour le Link */
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.login-button:hover,
+.logout-button:hover,
+.admin-dashboard-link:hover {
+  background-color: #4fa3d1;
+  transform: translateY(-2px);
+}
+
+/* Styles pour la modale */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+}
+
+.close-modal-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: #333;
+}
+
+.close-modal-button:hover {
+  color: #e74c3c;
+}
+
+/* Styles globaux pour le body/html */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f7f6;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main-content {
+  flex-grow: 1;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}

@@ -25,7 +25,7 @@ const authRoutes = require('./routes/authRoutes'); // Make sure this file exists
 app.use(express.json()); // To parse JSON request bodies
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Your frontend origins
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
   optionsSuccessStatus: 204
