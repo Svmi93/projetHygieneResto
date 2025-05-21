@@ -1,11 +1,9 @@
+// backend/src/server.js
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const mysql = require('mysql2/promise');
+require('dotenv').config({ path: '../.env' }); // Ensure the path to your .env is correct, relative to server.js
 
-dotenv.config();
-
+// Check .env variables (good for debugging, keep this)
 console.log('--- .env variables ---');
 console.log('HOST:', process.env.HOST);
 console.log('USERNAME:', process.env.USERNAME);
@@ -17,68 +15,27 @@ console.log('--------------------');
 const { getConnection } = require('./config/db');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001; // Use 5001 consistently as per docker-compose.yml
 
+// Import route modules
 const temperatureRoutes = require('./routes/temperatureRoutes');
-// --- REMOVE OR COMMENT OUT THIS LINE IF YOU DON'T HAVE authRoutes.js ---
-// const authRoutes = require('./routes/authRoutes');
+const authRoutes = require('./routes/authRoutes'); // Make sure this file exists and is correctly structured
 
-app.use(express.json());
+// Middleware
+app.use(express.json()); // To parse JSON request bodies
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
   optionsSuccessStatus: 204
 }));
 
-app.use('/api', temperatureRoutes);
-// --- REMOVE OR COMMENT OUT THIS LINE IF YOU DON'T HAVE authRoutes.js ---
-// app.use('/api/auth', authRoutes);
+// Route Middlewares
+app.use('/api', temperatureRoutes); // e.g., /api/temperatures
+app.use('/api/auth', authRoutes);    // e.g., /api/auth/register, /api/auth/login
 
-
-// Middleware de validation de mot de passe (pour l'enregistrement) - Keep this here if you keep the register route in server.js
-const validatePassword = (req, res, next) => {
-  const { password } = req.body;
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`])[A-Za-z\d!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`]{14,}$/;
-
-  if (!password || !passwordRegex.test(password)) {
-    return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 14 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial.' });
-  }
-  next();
-};
-
-// Route d'enregistrement des utilisateurs - Keep this here if you keep the register route in server.js
-app.post('/api/auth/register', validatePassword, async (req, res) => {
-  const {
-    nomEntreprise, nomClient, prenomClient, email, telephone,
-    adresse, siret, password
-  } = req.body;
-
-  try {
-    const pool = await getConnection(); // Make sure pool is accessible
-    const [rows] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows.length > 0) {
-      return res.status(409).json({ message: 'Cet email est déjà enregistré.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const [result] = await pool.execute(
-      `INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nomEntreprise, nomClient, prenomClient, email, telephone, adresse, siret, hashedPassword, 'client']
-    );
-
-    res.status(201).json({ message: 'Inscription réussie !', userId: result.insertId });
-
-  } catch (error) {
-    console.error('Erreur lors de l\'inscription :', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
-
+// Basic routes (optional, for testing API root)
 app.get('/api', (req, res) => {
   res.status(200).json({ message: 'API HygièneResto fonctionne !' });
 });
@@ -87,11 +44,10 @@ app.get('/', (req, res) => {
   res.send('API HygièneResto est démarrée !');
 });
 
-let pool; // Declared here for global access if needed
-
+// Initialize database connection and start server
 async function initializeDatabaseAndStartServer() {
   try {
-    pool = await getConnection();
+    const pool = await getConnection(); // getConnection returns the pool
     console.log('Connexion à la base de données MySQL réussie via config/db !');
 
     app.listen(PORT, () => {
@@ -99,7 +55,7 @@ async function initializeDatabaseAndStartServer() {
     });
   } catch (error) {
     console.error('Erreur lors de la connexion à la base de données ou du démarrage du serveur :', error);
-    process.exit(1);
+    process.exit(1); // Exit if DB connection fails
   }
 }
 
