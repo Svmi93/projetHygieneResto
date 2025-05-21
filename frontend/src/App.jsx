@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
+import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
+
 import './App.css'
 
 function App() {
@@ -24,6 +26,7 @@ function App() {
         <p>
           Edit <code>src/App.jsx</code> and save to test HMR
         </p>
+        <TemperatureRecordsPage />
       </div>
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more

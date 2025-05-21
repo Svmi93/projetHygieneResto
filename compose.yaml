@@ -1,42 +1,79 @@
 services:
-  app:
+  # Service for your Node.js API
+  api:
     build:
-      context: ./hygieneresto-backend/backend
+      context: ./backend # Make sure this is the correct path to your backend folder
       dockerfile: Dockerfile
+    container_name: hygieneresto_api
     ports:
-      - "${PORT}:${PORT}" # Utilisez la variable PORT définie ci-dessous
+      - "5001:5001" # Maps host port 5001 to API container port 5001
     environment:
+      # Pass your .env variables from the host to the container
+      # These variables will be available via process.env in your Node.js application
       NODE_ENV: ${NODE_ENV:-development}
-      PORT: 5001 # Port modifié à 5001
-      HOST: ${HOST:-localhost}
-      USERNAME: ${USERNAME:-rootttest}
-      PASSWORD: ${PASSWORD:-root1234}
-      DATABASE: ${DATABASE:-hygieneresto_db}
-      DB_PORT: ${DB_PORT:-3306}
+      PORT: 5001 # The port your Express API listens on INSIDE the container (must match EXPOSE in Dockerfile)
+      HOST: db # IMPORTANT: This is the database service name in Docker Compose
+      USERNAME: ${USERNAME}
+      PASSWORD: ${PASSWORD}
+      DATABASE: ${DATABASE}
+      DB_PORT: 3306 # IMPORTANT: This is the INTERNAL port of the MySQL container (standard 3306)
     depends_on:
-      - db
+      - db # The API depends on the 'db' (database) service
     restart: always
+    volumes:
+      # Mount the backend source code into the container for development
+      # This allows nodemon to detect changes without rebuilding the image
+      - ./backend:/usr/src/app
+      # Ensure node_modules isn't overwritten by volume mount on macOS/Windows
+      - /usr/src/app/node_modules # <-- Prevents host's node_modules from overwriting container's
     networks:
       - app-network
 
+  # Service for the MySQL database
   db:
-    image: mysql:5.7
+    image: mysql:5.7 # Use the official MySQL 5.7 image
+    container_name: hygieneresto_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${PASSWORD:-root1234}
-      MYSQL_DATABASE: ${DATABASE:-hygieneresto_db}
-      MYSQL_USER: ${USERNAME:-rootttest}
-      MYSQL_PASSWORD: ${PASSWORD:-root1234}
+      # Environment variables for MySQL (used by the MySQL image at startup)
+      MYSQL_ROOT_PASSWORD: ${PASSWORD}
+      MYSQL_DATABASE: ${DATABASE}
+      MYSQL_USER: ${USERNAME}
+      MYSQL_PASSWORD: ${PASSWORD}
     ports:
-      - "${DB_PORT}:3306"
+      - "${DB_PORT}:3306" # Maps the host port (e.g., 8889) to the container DB port 3306
     volumes:
-      - db-data:/var/lib/mysql
+      # Persistent volume for database data
+      - db_data:/var/lib/mysql
+      # Optional: to execute an SQL script on startup (table creation, etc.)
+      # If you have an init.sql file at the root of your global project, uncomment the line below
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
 
-volumes:
-  db-data:
+  # Service for phpMyAdmin (ADD THIS SECTION)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: hygieneresto_phpmyadmin
+    links:
+      - db:db  # Link phpMyAdmin to your 'db' service
+    environment:
+      PMA_HOST: db         # Tell phpMyAdmin to connect to the 'db' service name
+      PMA_PORT: 3306       # The internal port of the MySQL container
+      MYSQL_ROOT_PASSWORD: ${PASSWORD} # Use the same root password as your 'db' service's MYSQL_ROOT_PASSWORD
+      PMA_ARBITRARY: 1     # Allows entering any host, useful for testing different DBs
+    ports:
+      - "8080:80"          # Expose phpMyAdmin on your host machine's port 8080
+    depends_on:
+      - db # phpMyAdmin depends on the 'db' service
+    networks:
+      - app-network
 
+# Definition of named volumes for data persistence
+volumes:
+  db_data:
+
+# Definition of the Docker network
 networks:
   app-network:
     driver: bridge
