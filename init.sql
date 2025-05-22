@@ -15,7 +15,7 @@ CREATE TABLE users (
     adresse VARCHAR(255),
     siret VARCHAR(14), -- 14 digits for SIRET
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('super_admin', 'admin_client', 'client') NOT NULL DEFAULT 'client',
+    role ENUM('super_admin', 'admin_client', 'employer') NOT NULL DEFAULT 'employer',
     admin_client_id INT NULL, -- NEW: Links a client to their admin_client
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
