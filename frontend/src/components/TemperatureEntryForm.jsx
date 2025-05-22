@@ -1,114 +1,148 @@
 // frontend/src/components/TemperatureEntryForm.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
-import './TemperatureEntryForm.css'; // Create this CSS file
+import './TemperatureEntryForm.css'; // Assurez-vous d'avoir ce fichier CSS pour le style
 
-const API_BASE_URL = 'http://localhost:5001/api/client';
+const TemperatureEntryForm = ({ onRecordAdded, userRole }) => {
+  const [type, setType] = useState('');
+  const [location, setLocation] = useState('');
+  const [temperature, setTemperature] = useState(''); // Garder comme string pour l'input
+  const [notes, setNotes] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-const TemperatureEntryForm = () => {
-    const [newRecord, setNewRecord] = useState({
-        type: '', location: '', temperature: '', notes: ''
-    });
-    const [message, setMessage] = useState(null);
-    const [error, setError] = useState(null);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setIsSubmitting(true);
 
-    const getToken = () => localStorage.getItem('userToken');
+    // Convertir la température en nombre
+    const tempValue = parseFloat(temperature);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setNewRecord(prev => ({ ...prev, [name]: value }));
+    // Récupérer le user_id depuis localStorage (pour les employés/clients)
+    // Pour les Admin Clients qui ajoutent pour un employé, le user_id viendra d'un sélecteur
+    const userId = localStorage.getItem('userId'); // L'ID de l'utilisateur connecté (employé)
+
+    // Validation côté client
+    if (!type || !location || isNaN(tempValue)) {
+      setMessage('Veuillez remplir tous les champs obligatoires (Type, Emplacement, Température).');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Le timestamp sera généré par le backend ou ici avant l'envoi
+    const timestamp = new Date().toISOString(); // Format ISO 8601 pour compatibilité DB
+
+    const recordData = {
+      type,
+      location,
+      temperature: tempValue, // Envoyer la valeur numérique
+      timestamp,
+      notes,
+      user_id: userRole === 'client' ? parseInt(userId) : undefined // user_id pour les employés
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setMessage(null);
-        setError(null);
+    // Si c'est un Admin Client qui utilise ce formulaire pour un employé, il devra fournir l'user_id
+    // Pour l'instant, ce formulaire est pensé pour l'employé lui-même.
+    // Si l'Admin Client doit l'utiliser, il faudra un champ supplémentaire pour sélectionner l'employé.
 
-        if (!newRecord.type || !newRecord.location || newRecord.temperature === '') {
-            setError("Veuillez remplir tous les champs obligatoires : Type, Localisation, Température.");
-            return;
+    try {
+      const token = localStorage.getItem('userToken');
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
+      };
 
-        try {
-            const response = await axios.post(`${API_BASE_URL}/temperatures`, newRecord, {
-                headers: { Authorization: `Bearer ${getToken()}` },
-            });
-            setMessage('Relevé de température ajouté avec succès!');
-            setNewRecord({ type: '', location: '', temperature: '', notes: '' }); // Reset form
-            console.log("Record added:", response.data);
-            // Optionally, refresh the MyTemperatureRecords component if it's visible
-            // You might use a global state management or a callback prop for this
-        } catch (err) {
-            console.error('Erreur lors de l\'ajout du relevé:', err.response ? err.response.data : err);
-            setError(err.response?.data?.message || 'Erreur lors de l\'ajout du relevé.');
-        }
-    };
+      let endpoint = '';
+      if (userRole === 'client') { // Pour les employés
+        endpoint = 'http://localhost:5001/api/client/temperatures';
+      } else if (userRole === 'admin_client') { // Si l'admin client utilise ce formulaire
+        // Il faudra un champ user_id dans le formulaire pour l'admin client
+        // Pour l'instant, on suppose que ce formulaire est pour le rôle 'client' (employé)
+        setMessage('Ce formulaire n\'est pas configuré pour les Admin Clients sans sélection d\'employé.');
+        setIsSubmitting(false);
+        return;
+      } else if (userRole === 'super_admin') { // Si le super admin utilise ce formulaire
+         // Il faudra un champ user_id dans le formulaire pour le super admin
+        setMessage('Ce formulaire n\'est pas configuré pour les Super Admins sans sélection d\'employé.');
+        setIsSubmitting(false);
+        return;
+      } else {
+        setMessage('Rôle utilisateur non reconnu.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    return (
-        <div className="temperature-entry-form-container">
-            <h2>Saisir un nouveau relevé de température</h2>
-            {message && <div className="success-message">{message}</div>}
-            {error && <div className="error-message">{error}</div>}
-            <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                    <label htmlFor="type">Type de matériel/Produit:</label>
-                    <select name="type" id="type" value={newRecord.type} onChange={handleChange} required>
-                        <option value="">Sélectionner un type</option>
-                        <option value="frigo-positif">Réfrigérateur (+)</option>
-                        <option value="frigo-negatif">Congélateur (-)</option>
-                        <option value="livraison">Livraison</option>
-                        <option value="chambre-froide">Chambre Froide</option>
-                    </select>
-                </div>
 
-                <div className="form-group">
-                    <label htmlFor="location">Localisation/Description:</label>
-                    <input
-                        type="text"
-                        name="location"
-                        id="location"
-                        value={newRecord.location}
-                        onChange={handleChange}
-                        placeholder="Ex: Réfrigérateur Légumes, Liv. Poisson"
-                        required
-                    />
-                </div>
+      const response = await axios.post(endpoint, recordData, config);
+      setMessage('Relevé ajouté avec succès !');
+      onRecordAdded(response.data); // Appelle la fonction de rappel pour mettre à jour la liste
+      // Réinitialiser le formulaire
+      setType('');
+      setLocation('');
+      setTemperature('');
+      setNotes('');
 
-                <div className="form-group">
-                    <label htmlFor="temperature">Température (°C):</label>
-                    <input
-                        type="number"
-                        name="temperature"
-                        id="temperature"
-                        value={newRecord.temperature}
-                        onChange={handleChange}
-                        step="0.1"
-                        required
-                    />
-                </div>
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du relevé:', error.response?.data || error.message);
+      setMessage(`Erreur lors de l'ajout du relevé: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                {/* Date/Time is now handled by backend (auto-incremented) */}
-                <div className="form-group">
-                    <label>Date et Heure:</label>
-                    <input type="text" value="Automatique (enregistré par le serveur)" disabled />
-                </div>
-
-                <div className="form-group">
-                    <label htmlFor="notes">Notes (facultatif):</label>
-                    <textarea
-                        name="notes"
-                        id="notes"
-                        value={newRecord.notes}
-                        onChange={handleChange}
-                        rows="3"
-                        placeholder="Conditions particulières, actions correctives..."
-                    ></textarea>
-                </div>
-
-                <button type="submit">Enregistrer le relevé</button>
-            </form>
+  return (
+    <div className="temperature-form-container">
+      <h3>Ajouter un nouveau relevé de température</h3>
+      <form onSubmit={handleSubmit} className="temperature-form">
+        <div className="form-group">
+          <label htmlFor="type">Type (ex: Frigo Positif):</label>
+          <input
+            type="text"
+            id="type"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            required
+          />
         </div>
-    );
+        <div className="form-group">
+          <label htmlFor="location">Emplacement (ex: Réfrigérateur 1):</label>
+          <input
+            type="text"
+            id="location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="temperature">Température (°C):</label>
+          <input
+            type="number"
+            id="temperature"
+            step="0.01" // Permet les décimales
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="notes">Notes (optionnel):</label>
+          <textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          ></textarea>
+        </div>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Ajout en cours...' : 'Ajouter le relevé'}
+        </button>
+        {message && <p className="form-message">{message}</p>}
+      </form>
+    </div>
+  );
 };
 
 export default TemperatureEntryForm;
