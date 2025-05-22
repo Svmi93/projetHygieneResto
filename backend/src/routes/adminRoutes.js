@@ -1,28 +1,32 @@
-//// backend/src/routes/adminRoutes.js (pour super_admin uniquement)
+// backend/src/routes/adminRoutes.js
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const temperatureController = require('../controllers/temperatureController'); // Importez le contrôleur de température
+const temperatureController = require('../controllers/temperatureController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 // Toutes les routes ici nécessitent le rôle 'super_admin'
 router.use(authenticateToken, authorizeRoles('super_admin'));
 
-// --- Gestion de TOUS les utilisateurs (par super_admin) ---
+// --- User Management (Super Admin) ---
+// Récupérer tous les utilisateurs
 router.get('/users', userController.getAllUsersAdmin);
+// Créer un nouvel utilisateur
 router.post('/users', userController.createUserAdmin);
+// Mettre à jour un utilisateur
 router.put('/users/:id', userController.updateUserAdmin);
+// Supprimer un utilisateur
 router.delete('/users/:id', userController.deleteUserAdmin);
 
-// --- Gestion de TOUS les relevés de température (par super_admin) ---
-// Le Super Admin peut voir tous les relevés
-router.get('/temperatures', temperatureController.getTemperatureRecords); // Utilise la fonction générique
-// Le Super Admin peut créer des relevés pour n'importe quel user_id (doit être fourni dans le body)
-router.post('/temperatures', temperatureController.addTemperatureRecordByAdminClient); // Réutilise cette fonction car elle gère le user_id dans le body
-// Le Super Admin peut modifier n'importe quel relevé (doit fournir user_id dans le body pour la vérification)
-router.put('/temperatures/:id', temperatureController.updateTemperatureRecordForAdminClient); // Réutilise cette fonction
-// Le Super Admin peut supprimer n'importe quel relevé
-router.delete('/temperatures/:id', temperatureController.deleteTemperatureRecordForAdminClient); // Réutilise cette fonction
+// --- Temperature Record Management (Super Admin) ---
+// Récupérer tous les relevés de température
+router.get('/temperatures', temperatureController.getAllTemperatureRecordsAdmin);
+// Ajouter un relevé de température
+router.post('/temperatures', temperatureController.addTemperatureRecordAdmin);
+// Mettre à jour un relevé de température
+router.put('/temperatures/:id', temperatureController.updateTemperatureRecordAdmin);
+// Supprimer un relevé de température
+router.delete('/temperatures/:id', temperatureController.deleteTemperatureRecordAdmin);
 
 module.exports = router;
 
