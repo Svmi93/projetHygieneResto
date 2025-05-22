@@ -75,13 +75,11 @@ exports.createUserAdmin = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // --- START MODIFICATION ---
         // Convert any potentially undefined values to null for database insertion
         const finalTelephone = telephone || null;
         const finalAdresse = adresse || null;
         const finalSiret = siret || null; // Will be null if siret is undefined or an empty string
         const finalAdminClientSiret = admin_client_siret || null; // Will be null if admin_client_siret is undefined or an empty string
-        // --- END MODIFICATION ---
 
         const [result] = await pool.execute(
             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -143,13 +141,11 @@ exports.updateUserAdmin = async (req, res) => {
             hashedPassword = await bcrypt.hash(password, 10);
         }
 
-        // --- START MODIFICATION ---
         // Convert any potentially undefined values to null for database update
         const finalTelephone = telephone || null;
         const finalAdresse = adresse || null;
         const finalSiret = siret || null;
         const finalAdminClientSiret = admin_client_siret || null;
-        // --- END MODIFICATION ---
 
         const [result] = await pool.execute(
             'UPDATE users SET nom_entreprise = ?, nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, siret = ?, password_hash = COALESCE(?, password_hash), role = ?, admin_client_siret = ? WHERE id = ?',
@@ -235,15 +231,19 @@ exports.createEmployeeByAdminClient = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // --- START MODIFICATION ---
         // Convert any potentially undefined values to null for database insertion
         const finalTelephone = telephone || null;
         const finalAdresse = adresse || null;
-        // --- END MODIFICATION ---
+
+        // --- DÉBUT DE LA CORRECTION ---
+        // Pour un employé, la colonne 'siret' doit être NULL, car il n'a pas son propre SIRET d'entreprise.
+        // C'est la colonne 'admin_client_siret' qui le lie à l'admin client.
+        const employeeSiret = null; // Défini explicitement à NULL
+        // --- FIN DE LA CORRECTION ---
 
         const [result] = await pool.execute(
             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nomEntreprise, nom_client, prenom_client, email, finalTelephone, finalAdresse, adminClientSiret, hashedPassword, 'employer', adminClientSiret] // SIRET de l'employé est le même que l'admin_client
+            [nomEntreprise, nom_client, prenom_client, email, finalTelephone, finalAdresse, employeeSiret, hashedPassword, 'employer', adminClientSiret]
         );
 
         res.status(201).json({ id: result.insertId, nom_entreprise: nomEntreprise, nom_client, prenom_client, email, role: 'employer', admin_client_siret: adminClientSiret });
@@ -286,11 +286,9 @@ exports.updateEmployeeByAdminClient = async (req, res) => {
             hashedPassword = await bcrypt.hash(password, 10);
         }
 
-        // --- START MODIFICATION ---
         // Convert any potentially undefined values to null for database update
         const finalTelephone = telephone || null;
         const finalAdresse = adresse || null;
-        // --- END MODIFICATION ---
 
         const [result] = await pool.execute(
             'UPDATE users SET nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, password_hash = COALESCE(?, password_hash) WHERE id = ?',
@@ -341,6 +339,359 @@ exports.deleteEmployeeByAdminClient = async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'employé.' });
     }
 };
+
+
+
+
+
+
+
+
+
+
+// // backend/src/controllers/userController.js
+// const { getConnection } = require('../config/db');
+// const bcrypt = require('bcryptjs');
+
+// // Function to get user profile (used by /api/users/me)
+// exports.getMe = async (req, res) => {
+//     try {
+//         const pool = await getConnection();
+//         const [rows] = await pool.execute(
+//             'SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret FROM users WHERE id = ?',
+//             [req.user.id]
+//         );
+//         if (rows.length > 0) {
+//             res.json(rows[0]);
+//         } else {
+//             res.status(404).json({ message: 'User not found.' });
+//         }
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération du profil utilisateur:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération du profil utilisateur.' });
+//     }
+// };
+
+// // --- Super Admin Functions ---
+
+// // Get all users (Super Admin only)
+// exports.getAllUsersAdmin = async (req, res) => {
+//     try {
+//         const pool = await getConnection();
+//         const [users] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret, created_at, updated_at FROM users');
+//         res.status(200).json(users);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération de tous les utilisateurs (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des utilisateurs.' });
+//     }
+// };
+
+// // Create a new user (Super Admin only)
+// exports.createUserAdmin = async (req, res) => {
+//     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password, role, admin_client_siret } = req.body;
+
+//     if (!nom_entreprise || !nom_client || !prenom_client || !email || !password || !role) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires sont requis.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         const [existingUser] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+//         if (existingUser.length > 0) {
+//             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
+//         }
+
+//         // Validate SIRET for admin_client role
+//         if (role === 'admin_client' && (!siret || siret.length !== 14)) {
+//             return res.status(400).json({ message: 'Le SIRET est obligatoire et doit contenir 14 chiffres pour un rôle admin_client.' });
+//         }
+//         // Validate admin_client_siret for employer role
+//         if (role === 'employer' && (!admin_client_siret || admin_client_siret.length !== 14)) {
+//             return res.status(400).json({ message: 'Le SIRET de l\'admin client est obligatoire et doit contenir 14 chiffres pour un rôle employer.' });
+//         }
+//         // Ensure SIRET is unique if provided for admin_client
+//         if (role === 'admin_client' && siret) {
+//             const [existingSiret] = await pool.execute('SELECT id FROM users WHERE siret = ?', [siret]);
+//             if (existingSiret.length > 0) {
+//                 return res.status(409).json({ message: 'Un autre admin_client utilise déjà ce SIRET.' });
+//             }
+//         }
+//         // Ensure admin_client_siret exists in users table for employer
+//         if (role === 'employer' && admin_client_siret) {
+//             const [adminClientExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [admin_client_siret]);
+//             if (adminClientExists.length === 0) {
+//                 return res.status(400).json({ message: 'Le SIRET de l\'admin client spécifié n\'existe pas ou n\'est pas valide.' });
+//             }
+//         }
+
+//         const hashedPassword = await bcrypt.hash(password, 10);
+
+//         // --- START MODIFICATION ---
+//         // Convert any potentially undefined values to null for database insertion
+//         const finalTelephone = telephone || null;
+//         const finalAdresse = adresse || null;
+//         const finalSiret = siret || null; // Will be null if siret is undefined or an empty string
+//         const finalAdminClientSiret = admin_client_siret || null; // Will be null if admin_client_siret is undefined or an empty string
+//         // --- END MODIFICATION ---
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+//             [nom_entreprise, nom_client, prenom_client, email, finalTelephone, finalAdresse, finalSiret, hashedPassword, role, finalAdminClientSiret]
+//         );
+
+//         res.status(201).json({ id: result.insertId, nom_entreprise, nom_client, prenom_client, email, role });
+//     } catch (error) {
+//         console.error('Erreur lors de la création de l\'utilisateur (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la création de l\'utilisateur.' });
+//     }
+// };
+
+// // Update a user (Super Admin only)
+// exports.updateUserAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password, role, admin_client_siret } = req.body;
+
+//     if (!nom_entreprise || !nom_client || !prenom_client || !email || !role) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires (sauf mot de passe) sont requis pour la mise à jour.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Fetch current user data to check role and SIRET constraints
+//         const [currentUser] = await pool.execute('SELECT siret, role FROM users WHERE id = ?', [id]);
+//         if (currentUser.length === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+//         }
+//         const currentRole = currentUser[0].role;
+//         const currentSiret = currentUser[0].siret;
+
+//         // Validate SIRET for admin_client role
+//         if (role === 'admin_client' && (!siret || siret.length !== 14)) {
+//             return res.status(400).json({ message: 'Le SIRET est obligatoire et doit contenir 14 chiffres pour un rôle admin_client.' });
+//         }
+//         // Validate admin_client_siret for employer role
+//         if (role === 'employer' && (!admin_client_siret || admin_client_siret.length !== 14)) {
+//             return res.status(400).json({ message: 'Le SIRET de l\'admin client est obligatoire et doit contenir 14 chiffres pour un rôle employer.' });
+//         }
+//         // Ensure SIRET is unique if provided for admin_client and different from current user's SIRET
+//         if (role === 'admin_client' && siret && siret !== currentSiret) {
+//             const [existingSiret] = await pool.execute('SELECT id FROM users WHERE siret = ? AND id != ?', [siret, id]);
+//             if (existingSiret.length > 0) {
+//                 return res.status(409).json({ message: 'Un autre admin_client utilise déjà ce SIRET.' });
+//             }
+//         }
+//         // Ensure admin_client_siret exists in users table for employer
+//         if (role === 'employer' && admin_client_siret) {
+//             const [adminClientExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [admin_client_siret]);
+//             if (adminClientExists.length === 0) {
+//                 return res.status(400).json({ message: 'Le SIRET de l\'admin client spécifié n\'existe pas ou n\'est pas valide.' });
+//             }
+//         }
+
+//         let hashedPassword = null;
+//         if (password) {
+//             hashedPassword = await bcrypt.hash(password, 10);
+//         }
+
+//         // --- START MODIFICATION ---
+//         // Convert any potentially undefined values to null for database update
+//         const finalTelephone = telephone || null;
+//         const finalAdresse = adresse || null;
+//         const finalSiret = siret || null;
+//         const finalAdminClientSiret = admin_client_siret || null;
+//         // --- END MODIFICATION ---
+
+//         const [result] = await pool.execute(
+//             'UPDATE users SET nom_entreprise = ?, nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, siret = ?, password_hash = COALESCE(?, password_hash), role = ?, admin_client_siret = ? WHERE id = ?',
+//             [nom_entreprise, nom_client, prenom_client, email, finalTelephone, finalAdresse, finalSiret, hashedPassword, role, finalAdminClientSiret, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé ou aucune modification effectuée.' });
+//         }
+
+//         res.status(200).json({ id: parseInt(id), nom_entreprise, nom_client, prenom_client, email, role });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour de l\'utilisateur (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de l\'utilisateur.' });
+//     }
+// };
+
+// // Delete a user (Super Admin only)
+// exports.deleteUserAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     try {
+//         const pool = await getConnection();
+//         const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+//         }
+//         res.status(204).send();
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression de l\'utilisateur (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'utilisateur.' });
+//     }
+// };
+
+// // --- Admin Client Specific Functions ---
+
+// // Get employees by admin client SIRET
+// exports.getEmployeesByAdminClientId = async (req, res) => {
+//     const adminClientId = req.user.id; // ID de l'admin_client connecté
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         // Récupérer tous les utilisateurs avec le rôle 'employer' et le même admin_client_siret
+//         const [employees] = await pool.execute(
+//             'SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret FROM users WHERE role = "employer" AND admin_client_siret = ?',
+//             [adminClientSiret]
+//         );
+//         res.status(200).json(employees);
+//     } catch (error) {
+//         console.error('Error fetching employees for admin client:', error);
+//         res.status(500).json({ message: 'Internal server error while fetching employees.' });
+//     }
+// };
+
+// // Create employee by admin client
+// exports.createEmployeeByAdminClient = async (req, res) => {
+//     const adminClientId = req.user.id;
+//     const { nom_client, prenom_client, email, telephone, adresse, password } = req.body;
+
+//     if (!nom_client || !prenom_client || !email || !password) {
+//         return res.status(400).json({ message: 'Nom, prénom, email et mot de passe sont requis pour créer un employé.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT nom_entreprise, siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+//         const nomEntreprise = adminClientData[0].nom_entreprise;
+
+//         const [existingUser] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+//         if (existingUser.length > 0) {
+//             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
+//         }
+
+//         const hashedPassword = await bcrypt.hash(password, 10);
+
+//         // --- START MODIFICATION ---
+//         // Convert any potentially undefined values to null for database insertion
+//         const finalTelephone = telephone || null;
+//         const finalAdresse = adresse || null;
+//         // --- END MODIFICATION ---
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+//             [nomEntreprise, nom_client, prenom_client, email, finalTelephone, finalAdresse, adminClientSiret, hashedPassword, 'employer', adminClientSiret] // SIRET de l'employé est le même que l'admin_client
+//         );
+
+//         res.status(201).json({ id: result.insertId, nom_entreprise: nomEntreprise, nom_client, prenom_client, email, role: 'employer', admin_client_siret: adminClientSiret });
+//     } catch (error) {
+//         console.error('Erreur lors de la création de l\'employé par l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la création de l\'employé.' });
+//     }
+// };
+
+// // Update employee by admin client
+// exports.updateEmployeeByAdminClient = async (req, res) => {
+//     const { id } = req.params; // ID de l'employé à mettre à jour
+//     const adminClientId = req.user.id;
+//     const { nom_client, prenom_client, email, telephone, adresse, password } = req.body;
+
+//     if (!nom_client || !prenom_client || !email) {
+//         return res.status(400).json({ message: 'Nom, prénom et email sont requis pour la mise à jour de l\'employé.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         // Vérifier que l'employé à mettre à jour est bien rattaché à cet admin_client
+//         const [employeeToUpdate] = await pool.execute(
+//             'SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?',
+//             [id, adminClientSiret]
+//         );
+//         if (employeeToUpdate.length === 0) {
+//             return res.status(403).json({ message: 'Accès refusé. Cet employé n\'est pas géré par votre établissement ou n\'existe pas.' });
+//         }
+
+//         let hashedPassword = null;
+//         if (password) {
+//             hashedPassword = await bcrypt.hash(password, 10);
+//         }
+
+//         // --- START MODIFICATION ---
+//         // Convert any potentially undefined values to null for database update
+//         const finalTelephone = telephone || null;
+//         const finalAdresse = adresse || null;
+//         // --- END MODIFICATION ---
+
+//         const [result] = await pool.execute(
+//             'UPDATE users SET nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, password_hash = COALESCE(?, password_hash) WHERE id = ?',
+//             [nom_client, prenom_client, email, finalTelephone, finalAdresse, hashedPassword, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Employé non trouvé ou aucune modification effectuée.' });
+//         }
+
+//         res.status(200).json({ id: parseInt(id), nom_client, prenom_client, email });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour de l\'employé par l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de l\'employé.' });
+//     }
+// };
+
+// // Delete employee by admin client
+// exports.deleteEmployeeByAdminClient = async (req, res) => {
+//     const { id } = req.params; // ID de l'employé à supprimer
+//     const adminClientId = req.user.id;
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         // Vérifier que l'employé à supprimer est bien rattaché à cet admin_client
+//         const [employeeToDelete] = await pool.execute(
+//             'SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?',
+//             [id, adminClientSiret]
+//         );
+//         if (employeeToDelete.length === 0) {
+//             return res.status(403).json({ message: 'Accès refusé. Cet employé n\'est pas géré par votre établissement ou n\'existe pas.' });
+//         }
+
+//         const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Employé non trouvé.' });
+//         }
+//         res.status(204).send();
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression de l\'employé par l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'employé.' });
+//     }
+// };
 
 
 
