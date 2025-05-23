@@ -33,6 +33,41 @@ module.exports = router;
 
 
 
+// // backend/src/routes/adminClientRoutes.js
+// const express = require('express');
+// const router = express.Router();
+// const userController = require('../controllers/userController');
+// const temperatureController = require('../controllers/temperatureController');
+// const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// // Toutes les routes ici nécessitent le rôle 'admin_client'
+// router.use(authenticateToken, authorizeRoles('admin_client'));
+
+// // --- Employee Management (Admin Client) ---
+// // Récupérer les employés gérés par cet admin client
+// router.get('/employees', userController.getEmployeesByAdminClientId);
+// // Créer un nouvel employé
+// router.post('/employees', userController.createEmployeeByAdminClient);
+// // Mettre à jour un employé
+// router.put('/employees/:id', userController.updateEmployeeByAdminClient);
+// // Supprimer un employé
+// router.delete('/employees/:id', userController.deleteEmployeeByAdminClient);
+
+// // --- Temperature Record Management (Admin Client) ---
+// // Récupérer les relevés de température des employés gérés par cet admin client
+// router.get('/temperatures', temperatureController.getTemperatureRecordsForAdminClient);
+// // Ajouter un relevé de température pour un employé géré par cet admin client
+// router.post('/temperatures', temperatureController.addTemperatureRecordByAdminClient);
+// // Mettre à jour un relevé de température pour un employé géré par cet admin client
+// router.put('/temperatures/:id', temperatureController.updateTemperatureRecordForAdminClient);
+// // Supprimer un relevé de température pour un employé géré par cet admin client
+// router.delete('/temperatures/:id', temperatureController.deleteTemperatureRecordForAdminClient);
+
+// module.exports = router;
+
+
+
+
 
 
 

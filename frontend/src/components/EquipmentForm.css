@@ -1,0 +1,87 @@
+/* frontend/src/components/EquipmentForm.css */
+.equipment-form-container {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    margin: 20px auto;
+}
+
+.equipment-form-container h3 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.equipment-form .form-group {
+    margin-bottom: 15px;
+}
+
+.equipment-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.equipment-form input[type="text"],
+.equipment-form input[type="number"],
+.equipment-form select {
+    width: calc(100% - 20px); /* Adjust for padding */
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box; /* Include padding in width */
+}
+
+.equipment-form button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.equipment-form button:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.equipment-form button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.equipment-form .cancel-button {
+    background-color: #6c757d;
+    margin-left: 10px;
+}
+
+.equipment-form .cancel-button:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.form-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.form-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.form-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}

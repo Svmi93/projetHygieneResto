@@ -3,7 +3,7 @@ const { getConnection } = require('../config/db');
 const bcrypt = require('bcryptjs');
 
 // Function to get user profile (used by /api/users/me)
-exports.getMe = async (req, res) => {
+exports.getProfile = async (req, res) => {
     try {
         const pool = await getConnection();
         const [rows] = await pool.execute(

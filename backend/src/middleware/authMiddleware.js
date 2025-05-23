@@ -1,34 +1,65 @@
 // backend/src/middleware/authMiddleware.js
-const jwt = require('jsonwebtoken');
-const { jwtSecret } = require('../config/jwt');
+const jwt = require('jsonwebtoken'); // Assuming you use JWT for authentication
 
+// Middleware to authenticate JWT token
 exports.authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = authHeader && authHeader.split(' ')[1]; // Extract token from "Bearer TOKEN"
 
     if (token == null) {
-        return res.status(401).json({ message: 'No token provided. Access denied.' });
+        return res.status(401).json({ message: 'Authentication token required.' });
     }
 
-    jwt.verify(token, jwtSecret, (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            console.error('Token verification error:', err.message);
+            // If token is invalid or expired
             return res.status(403).json({ message: 'Invalid or expired token.' });
         }
-        req.user = user; // { id: userId, role: userRole }
-        next();
+        // IMPORTANT: Ensure the user object contains a 'role' property
+        // This 'user' object comes from the JWT payload.
+        req.user = user;
+        next(); // Pass control to the next middleware/route handler
     });
 };
 
+// Middleware factory to authorize specific roles
+// This function takes roles as arguments and RETURNS a middleware function.
 exports.authorizeRoles = (...allowedRoles) => {
     return (req, res, next) => {
+        // Check if user information (especially role) is present from authenticateToken
         if (!req.user || !req.user.role) {
-            return res.status(403).json({ message: 'User role not found. Access denied.' });
+            return res.status(403).json({ message: 'Access denied: Role information missing.' });
         }
 
-        if (!allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({ message: 'You do not have the required role to access this resource. Access denied.' });
+        // Check if the authenticated user's role is one of the allowed roles
+        if (allowedRoles.includes(req.user.role)) {
+            next(); // User is authorized, proceed
+        } else {
+            res.status(403).json({ message: 'Access denied: Insufficient privileges.' });
         }
-        next();
     };
 };
+
+
+
+
+// // backend/src/middleware/authMiddleware.js
+// const jwt = require('jsonwebtoken'); // Assuming you use JWT for authentication
+
+// exports.authenticateToken = (req, res, next) => {
+//     const authHeader = req.headers['authorization'];
+//     const token = authHeader && authHeader.split(' ')[1]; // Extract token from "Bearer TOKEN"
+
+//     if (token == null) {
+//         return res.status(401).json({ message: 'Authentication token required.' });
+//     }
+
+//     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+//         if (err) {
+//             // If token is invalid or expired
+//             return res.status(403).json({ message: 'Invalid or expired token.' });
+//         }
+//         req.user = user; // Attach user information to the request
+//         next(); // Pass control to the next middleware/route handler
+//     });
+// };
