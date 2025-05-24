@@ -357,7 +357,7 @@ export default AdminClientDashboardPage;
 //     try {
 //       const token = localStorage.getItem('userToken');
 //       const config = { headers: { 'Authorization': `Bearer ${token}` } };
-//       const response = await axios.get('http://localhost:5001/api/users/me', config);
+//       const response = await axios.get('http://localhost:5001/api/users/profile', config);
 //       setAdminClientProfile(response.data);
 //     } catch (err) {
 //       console.error('Erreur lors du chargement du profil de l\'Admin Client:', err);

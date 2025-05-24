@@ -87,7 +87,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
           }
 
           // Fetch current logged-in user's data (the Admin Client)
-          const response = await axios.get('http://localhost:5001/api/users/me', {
+          const response = await axios.get('http://localhost:5001/api/users/profile', {
             headers: { Authorization: `Bearer ${token}` }
           });
 
