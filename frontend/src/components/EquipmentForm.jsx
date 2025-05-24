@@ -4,7 +4,6 @@ import './EquipmentForm.css';
 
 const EquipmentForm = ({ onEquipmentSaved, initialData = {}, onCancel, isUpdate = false }) => {
 
-  // --- CRUCIAL CHANGE HERE ---
   // Initialize formData using a function. This runs ONLY ONCE when the component mounts.
   const [formData, setFormData] = useState(() => {
     if (isUpdate && initialData.id) {
@@ -31,8 +30,6 @@ const EquipmentForm = ({ onEquipmentSaved, initialData = {}, onCancel, isUpdate 
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- No useEffect for initial setup needed anymore due to useState initializer ---
-
   // Use useEffect ONLY for when the component *switches* from create to update or vice-versa,
   // or if the initialData.id specifically changes for an update.
   // This effect will run when `isUpdate` or `initialData.id` changes,
@@ -57,22 +54,16 @@ const EquipmentForm = ({ onEquipmentSaved, initialData = {}, onCancel, isUpdate 
               temperature_type: initialData.temperature_type || 'positive'
           });
       }
-    } else if (!isUpdate && (formData.name || formData.type || formData.min_temp || formData.max_temp || formData.temperature_type !== 'positive')) {
-        // If switching to "create" mode and form data is not already clean, reset it.
-        setFormData({
-            name: '',
-            type: '',
-            min_temp: '',
-            max_temp: '',
-            temperature_type: 'positive'
-        });
     }
-  }, [initialData, isUpdate]); // Keep initialData and isUpdate as dependencies
+    // L'ancien bloc 'else if (!isUpdate && ...)' a été retiré.
+    // L'initialisation en mode création est gérée par useState(() => ...).
+    // La réinitialisation après soumission est gérée dans handleSubmit.
+  }, [initialData, isUpdate]); // Les dépendances restent les mêmes
 
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-      console.log(`Touche tapée dans le champ ${name}, nouvelle valeur: ${value}`); 
+      console.log(`Touche tapée dans le champ ${name}, nouvelle valeur: ${value}`);
     setFormData(prevData => ({
       ...prevData,
       [name]: value
@@ -208,7 +199,6 @@ const EquipmentForm = ({ onEquipmentSaved, initialData = {}, onCancel, isUpdate 
 };
 
 export default EquipmentForm;
-
 
 
 
