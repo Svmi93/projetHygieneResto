@@ -72,6 +72,7 @@ const EquipmentForm = ({ onEquipmentSaved, initialData = {}, onCancel, isUpdate 
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+      console.log(`Touche tapée dans le champ ${name}, nouvelle valeur: ${value}`); 
     setFormData(prevData => ({
       ...prevData,
       [name]: value
