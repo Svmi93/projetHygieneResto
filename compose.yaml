@@ -1,6 +1,5 @@
 # docker-compose.yml
 
-
 services:
   # Service for your Node.js API
   api:
@@ -32,6 +31,12 @@ services:
       # Let the Dockerfile's npm install handle node_modules inside the container during build
     networks:
       - app-network
+    healthcheck: # <-- NOUVELLE SECTION AJOUTÉE POUR LE SERVICE API
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"] # Teste si l'API répond sur sa route de test
+      interval: 15s # Vérifie toutes les 10 secondes
+      timeout: 5s   # Timeout de 5 secondes pour le test
+      retries: 5    # 5 tentatives avant de marquer comme "unhealthy"
+      start_period: 45s # Attendre 30s avant de commencer les tests (pour laisser le temps à Node.js de démarrer)
 
   # Service for the MySQL database
   db:
@@ -85,8 +90,6 @@ volumes:
 networks:
   app-network:
     driver: bridge # Defines a custom bridge network for internal communication
-
-
 
 
 # # docker-compose.yml

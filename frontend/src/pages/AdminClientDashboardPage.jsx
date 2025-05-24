@@ -96,7 +96,7 @@ const AdminClientDashboardPage = () => {
       const response = await axios.get('http://localhost:5001/api/admin-client/equipments', config); // Nouvelle route backend
       // CORRECTED: Added check for array before setting state
       if (Array.isArray(response.data)) {
-        setEquipments(response.data);
+        setEquipments(response.data.equipments);
       } else {
         // If the API returns something that's not an array (e.g., {}, null, undefined),
         // set to an empty array to prevent .map() errors.
