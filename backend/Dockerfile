@@ -4,6 +4,11 @@ FROM node:18-alpine
 # Définit le répertoire de travail dans le conteneur
 WORKDIR /usr/src/app
 
+# Installe curl (nécessaire pour le healthcheck)
+RUN apk add --no-cache curl # Pour les images basées sur Alpine (comme node:18-alpine)
+# Si tu utilises une image basée sur Debian/Ubuntu (comme node:18), utilise :
+# RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Copie package.json et package-lock.json pour installer les dépendances
 # Ceci est fait en premier pour tirer parti de la mise en cache de Docker
 COPY package*.json ./

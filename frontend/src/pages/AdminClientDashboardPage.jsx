@@ -95,14 +95,14 @@ const AdminClientDashboardPage = () => {
       const config = { headers: { 'Authorization': `Bearer ${token}` } };
       const response = await axios.get('http://localhost:5001/api/admin-client/equipments', config); // Nouvelle route backend
       // CORRECTED: Added check for array before setting state
-      if (Array.isArray(response.data)) {
-        setEquipments(response.data);
-      } else {
-        // If the API returns something that's not an array (e.g., {}, null, undefined),
-        // set to an empty array to prevent .map() errors.
-        console.warn('API for equipments did not return an array, defaulting to empty array.', response.data);
-        setEquipments([]);
-      }
+      // --- CORRECTION ICI : Accéder directement à .equipments et vérifier si c'est un tableau ---
+    if (response.data && Array.isArray(response.data.equipments)) {
+      setEquipments(response.data.equipments);
+    } else {
+      // Si la propriété 'equipments' n'est pas un tableau ou response.data est invalide
+      console.warn('API for equipments did not return an array in the "equipments" property, defaulting to empty array.', response.data);
+      setEquipments([]);
+    }
     } catch (err) {
       console.error('Erreur lors du chargement des équipements:', err);
       setErrorEquipments('Erreur lors du chargement des équipements.');
