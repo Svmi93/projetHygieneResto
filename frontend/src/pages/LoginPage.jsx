@@ -11,6 +11,9 @@ function LoginPage({ onLoginSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Tentative de soumission du formulaire de connexion."); 
+    setMessage('');
+    setIsSubmitting(true);
     setError(''); // Réinitialise les messages d'erreur
     setSuccess(''); // Réinitialise les messages de succès
 
