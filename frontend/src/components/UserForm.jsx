@@ -3,7 +3,7 @@ import axios from 'axios';
 import './UserForm.css'; // Assurez-vous que ce fichier CSS existe et est stylisé
 
 // Helper function to create initial form state based on initialData
-const createInitialFormData = (data, isCreatingEmployee) => {
+const createInitialFormData = (data, isCreatingEmployer) => {
   // Common fields for all roles
   const baseData = {
     nom_entreprise: data.nom_entreprise || '',
@@ -14,10 +14,10 @@ const createInitialFormData = (data, isCreatingEmployee) => {
     telephone: data.telephone || '',
     adresse: data.adresse || '',
     // Default role: 'employer' if creating an employee, otherwise as provided or 'employer' for general new users
-    role: isCreatingEmployee ? 'employer' : (data.role || 'employer')
+    role: isCreatingEmployer ? 'employer' : (data.role || 'employer')
   };
 
-  if (isCreatingEmployee) {
+  if (isCreatingEmployer) {
     // When an Admin Client creates an employee, specific fields are fixed or nulled
     return {
       ...baseData,
@@ -41,10 +41,10 @@ const createInitialFormData = (data, isCreatingEmployee) => {
 const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false, apiEndpointForCreation = 'http://localhost:5001/api/admin/users' }) => {
 
   // Determine if this form instance is specifically for an Admin Client creating an employee
-  const isCreatingEmployeeByAdminClient = initialData.isCreatingEmployeeByAdminClient || false;
+  const isCreatingEmployerByAdminClient = initialData.isCreatingEmployerByAdminClient || false;
 
   // Initialize formData directly using the helper function.
-  const [formData, setFormData] = useState(() => createInitialFormData(initialData, isCreatingEmployeeByAdminClient));
+  const [formData, setFormData] = useState(() => createInitialFormData(initialData, isCreatingEmployerByAdminClient));
 
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,10 +56,10 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
     if (isUpdate && initialData.id) {
       // For updates, set form data based on the provided initialData
       setFormData(createInitialFormData(initialData, false)); // No 'isCreatingEmployee' context for general updates
-    } else if (!isUpdate && !isCreatingEmployeeByAdminClient) {
+    } else if (!isUpdate && !isCreatingEmployerByAdminClient) {
       // For standard creation by Super Admin, reset the form.
       setFormData(createInitialFormData({}, false)); // Clear for Super Admin creation
-    } else if (!isUpdate && isCreatingEmployeeByAdminClient) {
+    } else if (!isUpdate && isCreatingEmployerByAdminClient) {
         // Special case for initial load of Admin Client creating employee:
         // Ensure initial form state is correctly set for employee creation.
         // The fetchAdminClientData useEffect will then populate the company details.
@@ -71,12 +71,12 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             telephone: initialData.telephone || '',
         }, true)); // Pass true for isCreatingEmployee to ensure correct initial role etc.
     }
-  }, [initialData.id, isUpdate, isCreatingEmployeeByAdminClient]);
+  }, [initialData.id, isUpdate, isCreatingEmployerByAdminClient]);
 
 
   // Effect specifically for fetching Admin Client data when creating an employee.
   useEffect(() => {
-    if (isCreatingEmployeeByAdminClient && !isUpdate) {
+    if (isCreatingEmployerByAdminClient && !isUpdate) {
       setLoadingAdminClientData(true);
       const fetchAdminClientData = async () => {
         try {
@@ -114,7 +114,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
       };
       fetchAdminClientData();
     }
-  }, [isCreatingEmployeeByAdminClient, isUpdate]); // Dependencies for this specific effect
+  }, [isCreatingEmployerByAdminClient, isUpdate]); // Dependencies for this specific effect
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -140,7 +140,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
     const dataToSend = { ...formData };
 
     // Clean up dataToSend based on the form's purpose
-    if (isCreatingEmployeeByAdminClient) {
+    if (isCreatingEmployerByAdminClient) {
         // For employee creation by admin client, the backend automatically sets
         // nom_entreprise, siret (to NULL), and admin_client_siret based on the authenticated user.
         // So, we only send the employee's personal details.
@@ -183,9 +183,9 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
         onUserCreated(response.data);
       }
       // Clear form data after successful creation, but only for new entries
-      if (!isUpdate && !isCreatingEmployeeByAdminClient) {
+      if (!isUpdate && !isCreatingEmployerByAdminClient) {
         setFormData(createInitialFormData({}, false)); // Clear for Super Admin creation
-      } else if (!isUpdate && isCreatingEmployeeByAdminClient) {
+      } else if (!isUpdate && isCreatingEmployerByAdminClient) {
         // For employee creation by admin client, keep nom_entreprise and adresse but clear personal details
         setFormData(prevData => ({
           ...prevData,
@@ -211,7 +211,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
 
   return (
     <div className="user-form-container">
-      <h3>{isUpdate ? 'Modifier l\'utilisateur' : (isCreatingEmployeeByAdminClient ? 'Créer un nouvel employé' : 'Créer un nouvel utilisateur')}</h3>
+      <h3>{isUpdate ? 'Modifier l\'utilisateur' : (isCreatingEmployerByAdminClient ? 'Créer un nouvel employé' : 'Créer un nouvel utilisateur')}</h3>
       <form onSubmit={handleSubmit} className="user-form">
         {/* Nom Entreprise - Auto-rempli et ReadOnly pour la création d'employé par Admin Client */}
         <div className="form-group">
@@ -223,16 +223,16 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             value={formData.nom_entreprise}
             onChange={handleChange}
             required
-            readOnly={isCreatingEmployeeByAdminClient}
-            className={isCreatingEmployeeByAdminClient ? 'read-only' : ''}
+            readOnly={isCreatingEmployerByAdminClient}
+            className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
           />
         </div>
         <div className="form-group">
-          <label htmlFor="nom_client">{isCreatingEmployeeByAdminClient ? 'Nom Employé:' : 'Nom Client:'}</label>
+          <label htmlFor="nom_client">{isCreatingEmployerByAdminClient ? 'Nom Employé:' : 'Nom Client:'}</label>
           <input type="text" id="nom_client" name="nom_client" value={formData.nom_client} onChange={handleChange} required />
         </div>
         <div className="form-group">
-          <label htmlFor="prenom_client">{isCreatingEmployeeByAdminClient ? 'Prénom Employé:' : 'Prénom Client:'}</label>
+          <label htmlFor="prenom_client">{isCreatingEmployerByAdminClient ? 'Prénom Employé:' : 'Prénom Client:'}</label>
           <input type="text" id="prenom_client" name="prenom_client" value={formData.prenom_client} onChange={handleChange} required />
         </div>
         <div className="form-group">
@@ -255,15 +255,15 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             name="adresse"
             value={formData.adresse}
             onChange={handleChange}
-            readOnly={isCreatingEmployeeByAdminClient}
-            className={isCreatingEmployeeByAdminClient ? 'read-only' : ''}
+            readOnly={isCreatingEmployerByAdminClient}
+            className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
           />
         </div>
         {/* SIRET field:
             - Caché si l'Admin Client est en train de créer un employé (le SIRET de l'employé est nul, celui de l'entreprise est le SIRET du parent).
             - Sinon (pour Super Admin), visible et modifiable uniquement si le rôle est 'admin_client'.
         */}
-        {!isCreatingEmployeeByAdminClient && (
+        {!isCreatingEmployerByAdminClient && (
             <div className="form-group">
                 <label htmlFor="siret">SIRET (pour Admin Client):</label>
                 <input
@@ -279,7 +279,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
         )}
 
         {/* Le champ Rôle est masqué si l'Admin Client crée un employé (seul le rôle 'employer' est possible) */}
-        {!isCreatingEmployeeByAdminClient && (
+        {!isCreatingEmployerByAdminClient && (
           <div className="form-group">
             <label htmlFor="role">Rôle:</label>
             <select id="role" name="role" value={formData.role} onChange={handleChange} required>
@@ -293,7 +293,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             - Caché si l'Admin Client est en train de créer un employé (le backend gère le rattachement via le token).
             - Visible uniquement si le Super Admin relie un employeur à un admin_client existant.
         */}
-        {!isCreatingEmployeeByAdminClient && formData.role === 'employer' && (
+        {!isCreatingEmployerByAdminClient && formData.role === 'employer' && (
           <div className="form-group">
             <label htmlFor="admin_client_siret">SIRET Admin Client (pour les employés):</label>
             <input type="text" id="admin_client_siret" name="admin_client_siret" value={formData.admin_client_siret} onChange={handleChange} />

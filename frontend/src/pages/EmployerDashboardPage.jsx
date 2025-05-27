@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TemperatureEntryForm from '../components/TemperatureEntryForm';
 import DashboardLayout from '../components/DashboardLayout'; // Importez le nouveau layout
-import './EmployeeDashboardPage.css'; // Créez ce fichier CSS si ce n'est pas déjà fait
+import './EmployerDashboardPage.css'; // Créez ce fichier CSS si ce n'est pas déjà fait
 
-const EmployeeDashboardPage = () => {
+const EmployerDashboardPage = () => {
   const [temperatureRecords, setTemperatureRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +29,7 @@ const EmployeeDashboardPage = () => {
           'Authorization': `Bearer ${token}`
         }
       };
-      const response = await axios.get('http://localhost:5001/api/client/temperatures', config);
+      const response = await axios.get('http://localhost:5001/api/employer/temperatures', config);
       setTemperatureRecords(response.data);
 
       const locations = [...new Set(response.data.map(record => record.location))];
@@ -121,7 +121,7 @@ const EmployeeDashboardPage = () => {
   );
 };
 
-export default EmployeeDashboardPage;
+export default EmployerDashboardPage;
 
 
 
