@@ -5,7 +5,7 @@
     import LoginPage from './pages/LoginPage';
     import AdminDashboardPage from './pages/AdminDashboardPage'; // Importez AdminDashboardPage
     import AdminClientDashboardPage from './pages/AdminClientDashboardPage'; // Importez AdminClientDashboardPage
-    import EmployeeDashboardPage from './pages/EmployeeDashboardPage'; // Importez EmployeeDashboardPage
+    import EmployerDashboardPage from './pages/EmployerDashboardPage'; // Importez EmployeeDashboardPage
 
     import './App.css';
     import './components/Header.css';
@@ -28,7 +28,7 @@
           } else if (role === 'admin_client') {
             navigate('/admin-client-dashboard');
           } else if (role === 'employer') {
-            navigate('/employee-dashboard');
+            navigate('/employer-dashboard');
           }
         }
       }, [navigate]);
@@ -43,7 +43,7 @@
         } else if (role === 'admin_client') {
           navigate('/admin-client-dashboard');
         } else if (role === 'employer') {
-          navigate('/employee-dashboard');
+          navigate('/employer-dashboard');
         } else {
           navigate('/'); // Fallback par défaut
         }
@@ -74,7 +74,7 @@
                       <Link to="/admin-client-dashboard" className="admin-client-dashboard-link">Tableau de bord Admin Client</Link>
                     )}
                     {userRole === 'employer' && (
-                      <Link to="/employee-dashboard" className="employee-dashboard-link">Mon Tableau de bord Employé</Link>
+                      <Link to="/employer-dashboard" className="employer-dashboard-link">Mon Tableau de bord Employé</Link>
                     )}
                     <button onClick={handleLogout} className="logout-button">Déconnexion</button>
                   </>
@@ -101,7 +101,7 @@
               <Route path="/" element={<TemperatureRecordsPage />} /> {/* Page publique ou non authentifiée */}
               <Route path="/admin-dashboard" element={isLoggedIn && userRole === 'super_admin' ? <AdminDashboardPage /> : <LoginPage onLoginSuccess={handleLoginSuccess} />} />
               <Route path="/admin-client-dashboard" element={isLoggedIn && userRole === 'admin_client' ? <AdminClientDashboardPage /> : <LoginPage onLoginSuccess={handleLoginSuccess} />} />
-              <Route path="/employee-dashboard" element={isLoggedIn && userRole === 'employer' ? <EmployeeDashboardPage /> : <LoginPage onLoginSuccess={handleLoginSuccess} />} />
+              <Route path="/employer-dashboard" element={isLoggedIn && userRole === 'employer' ? <EmployerDashboardPage /> : <LoginPage onLoginSuccess={handleLoginSuccess} />} />
               {/* Fallback pour toute autre page - peut être une page 404 */}
               <Route path="*" element={<h1>404 - Page non trouvée</h1>} />
             </Routes>

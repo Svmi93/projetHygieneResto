@@ -2,21 +2,20 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DashboardLayout from '../components/DashboardLayout';
-import UserForm from '../components/UserForm'; // Importez le UserForm
-import './AdminDashboardPage.css'; // Créez ce fichier CSS si ce n'est pas déjà fait
+import UserForm from '../components/UserForm';
+import './AdminDashboardPage.css';
 
 const AdminDashboardPage = () => {
   const [users, setUsers] = useState([]);
-  const [temperatureRecords, setTemperatureRecords] = useState([]); // Garde cet état pour plus tard
-  const [loadingUsers, setLoadingUsers] = useState(true); // État de chargement spécifique aux utilisateurs
-  const [errorUsers, setErrorUsers] = useState(''); // Erreur spécifique aux utilisateurs
+  const [temperatureRecords, setTemperatureRecords] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [errorUsers, setErrorUsers] = useState('');
 
   useEffect(() => {
     fetchAllUsers();
     // fetchAllTemperatureRecords(); // Décommenter quand vous implémenterez la gestion des relevés
   }, []);
 
-  // Fonction pour charger tous les utilisateurs (pour le Super Admin)
   const fetchAllUsers = async () => {
     setLoadingUsers(true);
     setErrorUsers('');
@@ -28,7 +27,12 @@ const AdminDashboardPage = () => {
         }
       };
       const response = await axios.get('http://localhost:5001/api/admin/users', config);
-      setUsers(response.data);
+      if (Array.isArray(response.data)) { // Ajout d'une vérification pour s'assurer que c'est un tableau
+        setUsers(response.data);
+      } else {
+        console.warn('API for users did not return an array, defaulting to empty array.', response.data);
+        setUsers([]);
+      }
     } catch (err) {
       console.error('Erreur lors du chargement des utilisateurs:', err);
       setErrorUsers('Erreur lors du chargement des utilisateurs.');
@@ -37,13 +41,10 @@ const AdminDashboardPage = () => {
     }
   };
 
-  // Fonction de rappel après la création d'un utilisateur
   const handleUserCreated = (newUser) => {
-    setUsers(prevUsers => [...prevUsers, newUser]); // Ajoute le nouvel utilisateur à la liste
-    // La modale se fermera automatiquement via le DashboardLayout
+    setUsers(prevUsers => [...prevUsers, newUser]);
   };
 
-  // Fonction pour charger tous les relevés de température (pour le Super Admin) - Placeholder pour l'instant
   const fetchAllTemperatureRecords = async () => {
     // setLoading(true);
     // setError('');
@@ -64,7 +65,6 @@ const AdminDashboardPage = () => {
     // }
   };
 
-  // Définition des boutons pour la barre latérale du Super Admin
   const sidebarButtons = [
     {
       label: 'Gérer les Utilisateurs',
@@ -76,36 +76,33 @@ const AdminDashboardPage = () => {
           {loadingUsers ? <p>Chargement des utilisateurs...</p> : (
             <table className="data-table">
               <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Email</th>
-                  <th>Rôle</th>
-                  <th>Nom Entreprise</th>
-                  <th>Nom Client</th>
-                  <th>Prénom Client</th>
-                  <th>Actions</th>
-                </tr>
+                {/* Nettoyage des espaces blancs dans la balise tr */}
+                <tr><th>ID</th><th>Email</th><th>Rôle</th><th>Nom Entreprise</th><th>Nom Client</th><th>Prénom Client</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {users.map(user => (
-                  <tr key={user.id}>
-                    <td>{user.id}</td>
-                    <td>{user.email}</td>
-                    <td>{user.role}</td>
-                    <td>{user.nom_entreprise}</td>
-                    <td>{user.nom_client}</td>
-                    <td>{user.prenom_client}</td>
-                    <td>
-                      <button className="action-button edit-button">Modifier</button>
-                      <button className="action-button delete-button">Supprimer</button>
-                    </td>
-                  </tr>
-                ))}
+                {users.length === 0 ? (
+                  <tr><td colSpan="7">Aucun utilisateur trouvé.</td></tr>
+                ) : (
+                  users.map(user => (
+                    <tr key={user.id}>
+                      <td>{user.id}</td>
+                      <td>{user.email}</td>
+                      <td>{user.role}</td>
+                      <td>{user.nom_entreprise}</td>
+                      <td>{user.nom_client}</td>
+                      <td>{user.prenom_client}</td>
+                      <td>
+                        <button className="action-button edit-button">Modifier</button>
+                        <button className="action-button delete-button">Supprimer</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           )}
           <h4 className="mt-4">Ajouter un nouvel utilisateur</h4>
-          <UserForm onUserCreated={handleUserCreated} /> {/* Intégration du formulaire */}
+          <UserForm onUserCreated={handleUserCreated} />
         </div>
       )
     },
@@ -115,10 +112,8 @@ const AdminDashboardPage = () => {
       content: (
         <div className="admin-section">
           <h3>Tous les Relevés de Température</h3>
-          {/* TODO: Remplacer par un composant AllTemperatureRecordsTable */}
           <p>Tableau de tous les relevés de température ici.</p>
           <h4>Ajouter un relevé (pour un utilisateur spécifique)</h4>
-          {/* TODO: Remplacer par un composant TemperatureEntryForm adapté pour Super Admin */}
           <p>Formulaire d'ajout de relevé ici (avec sélection d'utilisateur).</p>
         </div>
       )
@@ -134,6 +129,157 @@ const AdminDashboardPage = () => {
 };
 
 export default AdminDashboardPage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // frontend/src/pages/AdminDashboardPage.jsx
+// import React, { useState, useEffect } from 'react';
+// import axios from 'axios';
+// import DashboardLayout from '../components/DashboardLayout';
+// import UserForm from '../components/UserForm'; // Importez le UserForm
+// import './AdminDashboardPage.css'; // Créez ce fichier CSS si ce n'est pas déjà fait
+
+// const AdminDashboardPage = () => {
+//   const [users, setUsers] = useState([]);
+//   const [temperatureRecords, setTemperatureRecords] = useState([]); // Garde cet état pour plus tard
+//   const [loadingUsers, setLoadingUsers] = useState(true); // État de chargement spécifique aux utilisateurs
+//   const [errorUsers, setErrorUsers] = useState(''); // Erreur spécifique aux utilisateurs
+
+//   useEffect(() => {
+//     fetchAllUsers();
+//     // fetchAllTemperatureRecords(); // Décommenter quand vous implémenterez la gestion des relevés
+//   }, []);
+
+//   // Fonction pour charger tous les utilisateurs (pour le Super Admin)
+//   const fetchAllUsers = async () => {
+//     setLoadingUsers(true);
+//     setErrorUsers('');
+//     try {
+//       const token = localStorage.getItem('userToken');
+//       const config = {
+//         headers: {
+//           'Authorization': `Bearer ${token}`
+//         }
+//       };
+//       const response = await axios.get('http://localhost:5001/api/admin/users', config);
+//       setUsers(response.data);
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des utilisateurs:', err);
+//       setErrorUsers('Erreur lors du chargement des utilisateurs.');
+//     } finally {
+//       setLoadingUsers(false);
+//     }
+//   };
+
+//   // Fonction de rappel après la création d'un utilisateur
+//   const handleUserCreated = (newUser) => {
+//     setUsers(prevUsers => [...prevUsers, newUser]); // Ajoute le nouvel utilisateur à la liste
+//     // La modale se fermera automatiquement via le DashboardLayout
+//   };
+
+//   // Fonction pour charger tous les relevés de température (pour le Super Admin) - Placeholder pour l'instant
+//   const fetchAllTemperatureRecords = async () => {
+//     // setLoading(true);
+//     // setError('');
+//     // try {
+//     //   // TODO: Implémenter l'appel API pour récupérer TOUS les relevés de température
+//     //   // Exemple: const response = await axios.get('http://localhost:5001/api/admin/temperatures', config);
+//     //   // setTemperatureRecords(response.data);
+//     //   console.log('Chargement de tous les relevés de température...');
+//     //   setTemperatureRecords([
+//     //     { id: 101, type: 'Frigo', location: 'Cuisine', temperature: 4.2, timestamp: '2023-01-01T10:00:00Z', user_id: 3 },
+//     //     { id: 102, type: 'Congélateur', location: 'Réserve', temperature: -18.5, timestamp: '2023-01-01T11:00:00Z', user_id: 3 },
+//     //   ]); // Données de test
+//     // } catch (err) {
+//     //   console.error('Erreur lors du chargement des relevés de température:', err);
+//     //   // setError('Erreur lors du chargement des relevés de température.');
+//     // } finally {
+//     //   // setLoading(false);
+//     // }
+//   };
+
+//   // Définition des boutons pour la barre latérale du Super Admin
+//   const sidebarButtons = [
+//     {
+//       label: 'Gérer les Utilisateurs',
+//       title: 'Gestion de tous les utilisateurs',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Liste des Utilisateurs</h3>
+//           {errorUsers && <p className="error-message">{errorUsers}</p>}
+//           {loadingUsers ? <p>Chargement des utilisateurs...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr>
+//                   <th>ID</th>
+//                   <th>Email</th>
+//                   <th>Rôle</th>
+//                   <th>Nom Entreprise</th>
+//                   <th>Nom Client</th>
+//                   <th>Prénom Client</th>
+//                   <th>Actions</th>
+//                 </tr>
+//               </thead>
+//               <tbody>
+//                 {users.map(user => (
+//                   <tr key={user.id}>
+//                     <td>{user.id}</td>
+//                     <td>{user.email}</td>
+//                     <td>{user.role}</td>
+//                     <td>{user.nom_entreprise}</td>
+//                     <td>{user.nom_client}</td>
+//                     <td>{user.prenom_client}</td>
+//                     <td>
+//                       <button className="action-button edit-button">Modifier</button>
+//                       <button className="action-button delete-button">Supprimer</button>
+//                     </td>
+//                   </tr>
+//                 ))}
+//               </tbody>
+//             </table>
+//           )}
+//           <h4 className="mt-4">Ajouter un nouvel utilisateur</h4>
+//           <UserForm onUserCreated={handleUserCreated} /> {/* Intégration du formulaire */}
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Gérer les Relevés',
+//       title: 'Gestion de tous les relevés de température',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Tous les Relevés de Température</h3>
+//           {/* TODO: Remplacer par un composant AllTemperatureRecordsTable */}
+//           <p>Tableau de tous les relevés de température ici.</p>
+//           <h4>Ajouter un relevé (pour un utilisateur spécifique)</h4>
+//           {/* TODO: Remplacer par un composant TemperatureEntryForm adapté pour Super Admin */}
+//           <p>Formulaire d'ajout de relevé ici (avec sélection d'utilisateur).</p>
+//         </div>
+//       )
+//     }
+//   ];
+
+//   return (
+//     <DashboardLayout sidebarButtons={sidebarButtons}>
+//       <h2 className="welcome-message">Tableau de bord Super Admin</h2>
+//       <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour gérer les utilisateurs et les relevés de température.</p>
+//     </DashboardLayout>
+//   );
+// };
+
+// export default AdminDashboardPage;
 
 
 

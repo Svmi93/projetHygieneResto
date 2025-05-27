@@ -13,7 +13,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const adminClientRoutes = require('./routes/adminClientRoutes');
 const temperatureRoutes = require('./routes/temperatureRoutes');
 const equipmentRoutes = require('./routes/equipmentRoutes');
-const employeeRoutes = require('./routes/employeeRoutes');
+const employerRoutes = require('./routes/employerRoutes');
 
 dotenv.config(); // Charger les variables d'environnement
 
@@ -64,7 +64,7 @@ async function startServer() {
     app.use('/api/users', userRoutes);
     app.use('/api/admin', adminRoutes);
     app.use('/api/admin-client', adminClientRoutes);
-    app.use('/api/client', employeeRoutes); // Assurez-vous que cette route est correcte pour les employés
+    app.use('/api/employer', employerRoutes); // Assurez-vous que cette route est correcte pour les employés
     app.use('/api', temperatureRoutes); // Routes générales de température
     app.use('/api/admin-client/equipments', equipmentRoutes); // Route spécifique pour les équipements de l'admin client
     app.use('/api/employees/my-locations', equipmentRoutes); // Si nécessaire, vérifiez l'objectif de cette route
