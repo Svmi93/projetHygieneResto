@@ -10,7 +10,7 @@ const getMyAlerts = async () => {
             'Authorization': `Bearer ${token}`
         }
     };
-    const response = await axios.get(`${API_URL}/me`, config);
+    const response = await axios.get(`${API_URL}/profile`, config);
     return response.data;
 };
 

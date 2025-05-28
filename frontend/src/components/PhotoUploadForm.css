@@ -1,0 +1,107 @@
+/* frontend/src/components/PhotoUploadForm.css */
+
+.photo-upload-container {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    text-align: center;
+}
+
+.photo-upload-container h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+}
+
+.photo-upload-container .webcam-container,
+.photo-upload-container img {
+    margin: 0 auto 20px auto;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    display: block; /* S'assure que l'image et la webcam sont des blocs pour centrer */
+    max-width: 100%; /* S'assure que ça ne déborde pas sur mobile */
+    height: auto;
+}
+
+.photo-upload-container button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.photo-upload-container button:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.photo-upload-container button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.photo-upload-container form {
+    margin-top: 20px;
+    text-align: left; /* Align left for form elements */
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.photo-upload-container .form-group {
+    margin-bottom: 15px;
+}
+
+.photo-upload-container label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: bold;
+}
+
+.photo-upload-container input[type="text"],
+.photo-upload-container input[type="number"],
+.photo-upload-container select {
+    width: calc(100% - 20px); /* Prend toute la largeur moins le padding */
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.photo-upload-container .submit-button {
+    width: 100%;
+    margin-top: 15px;
+    background-color: #28a745;
+}
+
+.photo-upload-container .submit-button:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+.photo-upload-container p.error-message {
+    color: #dc3545;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.photo-upload-container p.message { /* Pour les messages de succès */
+    color: #28a745;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    text-align: center;
+}
