@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const equipmentController = require('../controllers/equipmentController');
-const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 router.get('/', authenticateToken, authorizeRoles('employer'), equipmentController.getEmployeeLocations);
 

@@ -1,0 +1,30 @@
+
+{
+  "development": {
+    "username": "user",
+    "password": "password",
+    "database": "hygieneresto_db",
+    "host": "db",
+    "dialect": "postgres",
+    "port": 5432,
+    "operatorsAliases": false
+  },
+  "test": {
+    "username": "user",
+    "password": "password",
+    "database": "hygieneresto_test_db",
+    "host": "db",
+    "dialect": "postgres",
+    "port": 5432,
+    "operatorsAliases": false
+  },
+  "production": {
+    "username": "user",
+    "password": "password",
+    "database": "hygieneresto_prod_db",
+    "host": "db",
+    "dialect": "postgres",
+    "port": 5432,
+    "operatorsAliases": false
+  }
+}

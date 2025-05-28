@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const temperatureController = require('../controllers/temperatureController');
-const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 // Toutes les routes ici nécessitent le rôle 'super_admin'
 router.use(authenticateToken, authorizeRoles('super_admin'));
