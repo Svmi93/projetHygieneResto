@@ -1,0 +1,93 @@
+/* frontend/src/components/PhotoGallery.css */
+
+.photo-gallery-container {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.photo-gallery-container h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    text-align: center;
+}
+
+.photo-gallery-container p {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+.photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Responsive grid */
+    gap: 20px;
+    justify-content: center;
+    padding: 10px;
+}
+
+.photo-item {
+    background-color: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pour que le bouton soit en bas */
+}
+
+.photo-item img {
+    max-width: 100%;
+    height: 150px; /* Hauteur fixe pour toutes les images */
+    object-fit: cover; /* Recadre l'image pour qu'elle remplisse l'espace */
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.photo-item p {
+    margin: 5px 0;
+    font-size: 0.95em;
+    color: #444;
+    text-align: left;
+}
+
+.photo-item p strong {
+    color: #333;
+}
+
+.photo-item button {
+    background-color: #dc3545; /* Couleur rouge pour supprimer */
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    margin-top: 10px;
+    transition: background-color 0.2s ease;
+    width: 100%; /* Bouton pleine largeur */
+}
+
+.photo-item button:hover:not(:disabled) {
+    background-color: #c82333;
+}
+
+.photo-item button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Styles pour les messages de chargement et d'erreur dans la galerie */
+.photo-gallery-container p[style*="red"],
+.photo-gallery-container p[style*="green"] {
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}

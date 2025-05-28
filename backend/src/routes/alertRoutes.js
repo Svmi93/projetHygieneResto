@@ -4,6 +4,8 @@ const router = express.Router();
 const { getConnection } = require('../config/db'); // Importe la fonction pour obtenir une connexion
 // Importe spécifiquement les fonctions authenticateToken et authorizeRoles de ton middleware
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+// const alertsController = require('../controllers/'); // Make sure this path is correct
+
 
 // GET /api/alerts/profile - Récupérer les alertes pour l'utilisateur connecté
 router.get('/profile', authenticateToken, async (req, res) => { // <-- Correction ici : utilise authenticateToken

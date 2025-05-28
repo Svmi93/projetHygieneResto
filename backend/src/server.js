@@ -4,6 +4,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const helmet = require('helmet'); // Import Helmet
+const path = require('path'); // Importe le module 'path' pour gérer les chemins de fichiers
 
 // IMPORTER initializeDatabasePool et getConnection (qui est getPooledConnection dans db.js)
 const { initializeDatabasePool } = require('./config/db'); // On n'a besoin que de initializeDatabasePool ici
@@ -18,7 +19,8 @@ const adminClientRoutes = require('./routes/adminClientRoutes');
 const temperatureRoutes = require('./routes/temperatureRoutes');
 const equipmentRoutes = require('./routes/equipmentRoutes');
 const employerRoutes = require('./routes/employerRoutes');
-const alertRoutes = require('./routes/alertRoutes'); // Importez les routes d'alertes
+const alertRoutes = require('./routes/alertRoutes');
+const photoRoutes = require('./routes/photoRoutes'); // <<< NOUVELLE LIGNE : Importe les routes photos
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -30,7 +32,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:"],
+      imgSrc: ["'self'", "data:", "http://localhost:5001"], // <<< MODIFIÉ : Autorise les images depuis le backend
       connectSrc: ["'self'", "http://localhost:5001", "http://localhost:5173"],
     },
   },
@@ -43,6 +45,11 @@ app.use(cors({
   credentials: true
 }));
 app.use(bodyParser.json());
+
+// <<< NOUVELLE LIGNE : Middleware pour servir les fichiers statiques (photos uploadées)
+// Les photos seront accessibles via http://localhost:5001/uploads/nom_du_fichier.jpg
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 
 // Démarrage du serveur et initialisation de la base de données
 async function startServer() {
@@ -66,6 +73,7 @@ async function startServer() {
 
     // Utilisation des routes d'alertes
     app.use('/api/alerts', alertRoutes);
+    app.use('/api/photos', photoRoutes); // <<< NOUVELLE LIGNE : Utilise les routes photos
 
     // Route de test simple pour vérifier que l'API fonctionne
     app.get('/', (req, res) => {
@@ -89,7 +97,6 @@ async function startServer() {
 
 // Appeler la fonction asynchrone pour lancer le serveur
 startServer();
-
 
 
 

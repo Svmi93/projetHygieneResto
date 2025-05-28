@@ -1,17 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // frontend/src/pages/AdminClientDashboardPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -20,6 +6,11 @@ import UserForm from '../components/UserForm';
 import TemperatureEntryForm from '../components/TemperatureEntryForm'; // Gardé si utilisé ailleurs, sinon peut être retiré
 import EquipmentForm from '../components/EquipmentForm';
 import './AdminClientDashboardPage.css';
+
+// --- IMPORTS POUR LES PHOTOS ---
+import PhotoUploadForm from '../components/PhotoUploadForm'; // <<< NOUVEL IMPORT
+import PhotoGallery from '../components/PhotoGallery';     // <<< NOUVEL IMPORT
+// --- FIN IMPORTS PHOTOS ---
 
 // --- NOUVEAUX IMPORTS POUR LES ALERTES ---
 import AlertPopup from '../components/AlertPopup'; // Importez le composant de pop-up
@@ -42,6 +33,12 @@ const AdminClientDashboardPage = () => {
   const [alerts, setAlerts] = useState([]);
   const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
   // --- FIN NOUVEAUX ÉTATS ---
+
+  // --- NOUVEAUX ÉTATS POUR LES PHOTOS ---
+  const [adminClientSiret, setAdminClientSiret] = useState(null); // <<< NOUVEL ÉTAT POUR LE SIRET
+  const [refreshPhotos, setRefreshPhotos] = useState(0); // <<< NOUVEL ÉTAT pour forcer le rechargement de la galerie
+  // --- FIN NOUVEAUX ÉTATS PHOTOS ---
+
 
   useEffect(() => {
     fetchAdminClientProfile();
@@ -76,7 +73,7 @@ const AdminClientDashboardPage = () => {
     };
     // --- FIN NOUVELLE LOGIQUE POUR LES ALERTES ---
 
-  }, [currentAlert]); // Ajoutez currentAlert aux dépendances pour déclencher la mise à jour si la popup est fermée
+  }, [currentAlert, refreshPhotos]); // <<< AJOUTE refreshPhotos aux dépendances pour le rechargement des photos
 
   // --- NOUVELLE FONCTION POUR MARQUER L'ALERTE COMME LUE ---
   const handleDismissAlert = async () => {
@@ -101,6 +98,11 @@ const AdminClientDashboardPage = () => {
       const config = { headers: { 'Authorization': `Bearer ${token}` } };
       const response = await axios.get('http://localhost:5001/api/users/profile', config);
       setAdminClientProfile(response.data);
+      // <<< AJOUTE ICI : Stocke le SIRET dans l'état local
+      if (response.data && response.data.siret) {
+        setAdminClientSiret(response.data.siret);
+        localStorage.setItem('userSiret', response.data.siret); // Stocke le SIRET dans localStorage aussi
+      }
     } catch (err) {
       console.error('Erreur lors du chargement du profil de l\'Admin Client:', err);
     }
@@ -197,6 +199,12 @@ const AdminClientDashboardPage = () => {
     }
   };
 
+  // --- FONCTION POUR RAFRAÎCHIR LA GALERIE PHOTO ---
+  const handlePhotoActionSuccess = () => {
+    setRefreshPhotos(prev => prev + 1); // Incrémente pour déclencher le useEffect dans PhotoGallery
+  };
+  // --- FIN FONCTION RAFRAÎCHIR ---
+
   const employeeFormInitialData = adminClientProfile ? {
     admin_client_id: adminClientProfile.id,
     isCreatingEmployeeByAdminClient: true
@@ -204,6 +212,7 @@ const AdminClientDashboardPage = () => {
     isCreatingEmployeeByAdminClient: true
   };
 
+  // --- AJOUT DE NOUVEAUX BOUTONS POUR LES PHOTOS ---
   const sidebarButtons = [
     {
       label: 'Gérer mes Employés',
@@ -332,8 +341,26 @@ const AdminClientDashboardPage = () => {
           )}
         </div>
       )
+    },
+    {
+      label: 'Gérer les Photos', // <<< NOUVEAU BOUTON POUR LES PHOTOS
+      title: 'Prendre et consulter les photos de produits',
+      content: (
+        <div className="admin-section">
+          {adminClientSiret ? ( // S'assure que le SIRET est disponible avant d'afficher les composants
+            <>
+              <PhotoUploadForm siret={adminClientSiret} onPhotoUploadSuccess={handlePhotoActionSuccess} />
+              <hr style={{ margin: '30px 0', borderColor: '#eee' }} />
+              <PhotoGallery siret={adminClientSiret} currentUserRole={localStorage.getItem('userRole')} onPhotoDeleted={handlePhotoActionSuccess} key={refreshPhotos} />
+            </>
+          ) : (
+            <p>Chargement des informations client pour les photos...</p>
+          )}
+        </div>
+      )
     }
   ];
+  // --- FIN AJOUT DE NOUVEAUX BOUTONS ---
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>

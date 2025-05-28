@@ -1,9 +1,14 @@
-// frontend/src/pages/EmployeeDashboardPage.jsx
+// frontend/src/pages/EmployerDashboardPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TemperatureEntryForm from '../components/TemperatureEntryForm';
-import DashboardLayout from '../components/DashboardLayout'; // Importez le nouveau layout
-import './EmployerDashboardPage.css'; // Créez ce fichier CSS si ce n'est pas déjà fait
+import DashboardLayout from '../components/DashboardLayout';
+import './EmployerDashboardPage.css';
+
+// --- IMPORTS POUR LES PHOTOS ---
+import PhotoUploadForm from '../components/PhotoUploadForm'; // <<< NOUVEL IMPORT
+import PhotoGallery from '../components/PhotoGallery';     // <<< NOUVEL IMPORT
+// --- FIN IMPORTS PHOTOS ---
 
 // --- NOUVEAUX IMPORTS POUR LES ALERTES ---
 import AlertPopup from '../components/AlertPopup'; // Importez le composant de pop-up
@@ -23,10 +28,39 @@ const EmployerDashboardPage = () => {
   const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
   // --- FIN NOUVEAUX ÉTATS ---
 
+  // --- NOUVEAUX ÉTATS POUR LES PHOTOS ---
+  const [adminClientSiret, setAdminClientSiret] = useState(null); // <<< NOUVEL ÉTAT POUR LE SIRET DE L'ADMIN CLIENT
+  const [refreshPhotos, setRefreshPhotos] = useState(0); // <<< NOUVEL ÉTAT pour forcer le rechargement de la galerie
+  // --- FIN NOUVEAUX ÉTATS PHOTOS ---
+
+
   useEffect(() => {
     const role = localStorage.getItem('userRole');
     setUserRole(role);
     fetchTemperatureRecords();
+
+    // <<< NOUVELLE LOGIQUE POUR RÉCUPÉRER LE SIRET DE L'ADMIN CLIENT POUR L'EMPLOYÉ
+    const fetchAdminClientSiret = async () => {
+      try {
+        const token = localStorage.getItem('userToken');
+        const response = await axios.get('http://localhost:5001/api/users/profile', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        // Pour un employé, admin_client_siret est directement dans le profil utilisateur
+        if (response.data && response.data.admin_client_siret) {
+          setAdminClientSiret(response.data.admin_client_siret);
+          localStorage.setItem('userSiret', response.data.admin_client_siret); // Utile si tu en as besoin ailleurs
+        } else {
+            console.warn("SIRET de l'admin client non trouvé pour l'employé.");
+            setError("SIRET de l'établissement non trouvé. Contactez votre administrateur.");
+        }
+      } catch (err) {
+        console.error("Erreur lors de la récupération du SIRET de l'admin client pour l'employé:", err);
+        setError("Erreur lors du chargement des informations de l'établissement.");
+      }
+    };
+    fetchAdminClientSiret();
+    // <<< FIN NOUVELLE LOGIQUE SIRET EMPLOYÉ
 
     // --- NOUVELLE LOGIQUE POUR LES ALERTES ---
     const fetchAndDisplayAlerts = async () => {
@@ -54,7 +88,7 @@ const EmployerDashboardPage = () => {
     };
     // --- FIN NOUVELLE LOGIQUE POUR LES ALERTES ---
 
-  }, [currentAlert]); // Ajoutez currentAlert aux dépendances pour déclencher la mise à jour si la popup est fermée
+  }, [currentAlert, refreshPhotos]); // <<< AJOUTE refreshPhotos aux dépendances pour le rechargement des photos
 
   // --- NOUVELLE FONCTION POUR MARQUER L'ALERTE COMME LUE ---
   const handleDismissAlert = async () => {
@@ -107,6 +141,13 @@ const EmployerDashboardPage = () => {
       return prevLocations;
     });
   };
+
+  // --- FONCTION POUR RAFRAÎCHIR LA GALERIE PHOTO ---
+  const handlePhotoActionSuccess = () => {
+    setRefreshPhotos(prev => prev + 1); // Incrémente pour déclencher le useEffect dans PhotoGallery
+  };
+  // --- FIN FONCTION RAFRAÎCHIR ---
+
 
   const filteredRecords = selectedLocation === 'all'
     ? temperatureRecords
@@ -164,8 +205,26 @@ const EmployerDashboardPage = () => {
           )}
         </>
       )
+    },
+    {
+      label: 'Gérer les Photos', // <<< NOUVEAU BOUTON POUR LES PHOTOS
+      title: 'Prendre et consulter les photos de produits',
+      content: (
+        <div className="employer-section">
+          {adminClientSiret ? ( // S'assure que le SIRET est disponible avant d'afficher les composants
+            <>
+              <PhotoUploadForm siret={adminClientSiret} onPhotoUploadSuccess={handlePhotoActionSuccess} />
+              <hr style={{ margin: '30px 0', borderColor: '#eee' }} />
+              <PhotoGallery siret={adminClientSiret} currentUserRole={localStorage.getItem('userRole')} onPhotoDeleted={handlePhotoActionSuccess} key={refreshPhotos} />
+            </>
+          ) : (
+            <p>Chargement des informations de l'établissement pour les photos...</p>
+          )}
+        </div>
+      )
     }
   ];
+  // --- FIN AJOUT DE NOUVEAUX BOUTONS ---
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
