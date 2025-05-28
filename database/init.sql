@@ -65,6 +65,25 @@ CREATE TABLE temperature_records (
     INDEX idx_siret_etablissement (siret_etablissement)
 );
 
+CREATE TABLE IF NOT EXISTS photos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    siret VARCHAR(14) NOT NULL, -- Le SIRET du client auquel la photo est rattachée
+    product_name VARCHAR(255) NOT NULL,
+    quantity DECIMAL(10, 2) NOT NULL,
+    product_type ENUM('fresh', 'frozen', 'long_conservation') NOT NULL,
+    capture_date DATETIME DEFAULT CURRENT_TIMESTAMP, -- Date automatique de la prise de photo
+    file_path VARCHAR(255) NOT NULL, -- Chemin ou URL du fichier sur le serveur
+    uploader_id INT NOT NULL, -- ID de l'utilisateur qui a uploadé la photo
+    uploader_role VARCHAR(50) NOT NULL, -- Rôle de l'utilisateur qui a uploadé
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    -- Clé étrangère vers la table des clients (si tu as une table clients avec SIRET)
+    -- Ou vers la table des utilisateurs si le SIRET est lié à l'utilisateur
+    CONSTRAINT fk_siret FOREIGN KEY (siret) REFERENCES admin_client(siret) ON DELETE CASCADE
+    -- Assurez-vous d'avoir une table 'clients' avec une colonne 'siret' et qu'elle soit la clé primaire ou unique.
+    -- Ou si le siret est stocké sur la table 'users', adaptez la FK.
+);
+
 -- Add some initial data
 -- Super Admin
 INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, password_hash, role) VALUES

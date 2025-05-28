@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const equipmentController = require('../controllers/equipmentController');
 // Import with the correct names from authMiddleware.js
-const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 // Route for admin_client to get their equipments
 // Use authenticateToken and authorizeRoles directly

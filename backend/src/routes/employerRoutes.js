@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const temperatureController = require('../controllers/temperatureController');
-const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 // Toutes les routes ici nécessitent le rôle 'employer'
 router.use(authenticateToken, authorizeRoles('employer')); // CHANGED: 'client' to 'employer'

@@ -20,12 +20,17 @@ function LoginPage({ onLoginSuccess }) {
     setMessage('');
     setIsSubmitting(true);
 
+    // --- DEBOGAGE : Point d'arrêt 1 ---
+    debugger; 
+
     try {
       const response = await axios.post('http://localhost:5001/api/auth/login', {
         email,
         password,
       });
 
+      // --- DEBOGAGE : Point d'arrêt 2 (si succès) ---
+      debugger; 
       console.log('Connexion réussie:', response.data);
       const { token, role, id } = response.data;
 
@@ -36,6 +41,8 @@ function LoginPage({ onLoginSuccess }) {
       setSuccess('Connexion réussie ! Redirection...');
       onLoginSuccess(role);
     } catch (err) {
+      // --- DEBOGAGE : Point d'arrêt 3 (si erreur) ---
+      debugger; 
       console.error('Erreur de connexion:', err);
       if (err.response) {
         setError(err.response.data.message || 'Erreur lors de la connexion.');
@@ -45,6 +52,8 @@ function LoginPage({ onLoginSuccess }) {
         setError('Erreur inattendue lors de la connexion.');
       }
     } finally {
+      // --- DEBOGAGE : Point d'arrêt 4 (toujours exécuté) ---
+      debugger; 
       setIsSubmitting(false);
     }
   };
@@ -64,7 +73,7 @@ function LoginPage({ onLoginSuccess }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            autoComplete="email" // CORRIGÉ ici
+            autoComplete="email"
           />
         </div>
         <div className="form-group">
@@ -75,7 +84,7 @@ function LoginPage({ onLoginSuccess }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            autoComplete="current-password" // CORRIGÉ ici
+            autoComplete="current-password"
           />
         </div>
         <button type="submit" className="submit-button" disabled={isSubmitting}>

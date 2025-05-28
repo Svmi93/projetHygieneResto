@@ -2,8 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticateToken } = require('../middleware/authMiddleware'); // Line 8 of userRoutes.js is here
-router.get('/profile', authenticateToken, userController.getProfile);
+const { authenticateToken , authorizeRoles } = require('../middleware/auth'); // Line 8 of userRoutes.js is here
+router.get('/profile', authenticateToken, userController.getProfile , authorizeRoles);
 module.exports = router;
 
 
