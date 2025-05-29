@@ -1,7 +1,7 @@
 // frontend/src/components/PhotoUploadForm.jsx
 import React, { useRef, useState, useCallback } from 'react';
 import Webcam from 'react-webcam';
-import axios from 'axios';
+import axiosInstance from '../api/axiosInstance'; // Importe l'instance Axios centralisée
 import './PhotoUploadForm.css';
 
 function PhotoUploadForm({ siret, onPhotoUploadSuccess }) {
@@ -41,15 +41,16 @@ function PhotoUploadForm({ siret, onPhotoUploadSuccess }) {
       formData.append('product_type', productType);
       formData.append('siret', siret); // Le SIRET doit être passé ici
 
-      const token = localStorage.getItem('userToken');
+      // Plus besoin de récupérer le token ici, l'intercepteur axiosInstance s'en charge
+      // const token = localStorage.getItem('userToken');
 
-      const response = await axios.post(
-        'http://localhost:5001/api/photos/upload',
+      const response = await axiosInstance.post( // Utilise axiosInstance
+        '/photos/upload', // Chemin relatif à la baseURL de axiosInstance
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data', // Axios le gère souvent auto avec FormData, mais bon à préciser
-            'Authorization': `Bearer ${token}`
+            'Content-Type': 'multipart/form-data', // Toujours bon à préciser pour FormData
+            // L'en-tête Authorization est géré par l'intercepteur de axiosInstance
           },
         }
       );
