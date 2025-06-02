@@ -60,7 +60,7 @@ function App() {
     localStorage.removeItem('clientId');
     setIsAuthenticated(false);
     setUserRole(null);
-    window.location.href = '/login'; // Redirige vers la page de connexion (qui affichera le bouton de connexion)
+    window.location.href = '/'; // Redirige vers la page de connexion (qui affichera le bouton de connexion)
   };
 
   // Fonctions pour ouvrir/fermer les formulaires
