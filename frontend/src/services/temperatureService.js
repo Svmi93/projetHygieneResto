@@ -1,12 +1,14 @@
-// frontend/src/services/temperatureService.js
 import axiosInstance from '../api/axiosInstance'; // Assurez-vous que le chemin est correct
 
-const API_URL = '/temperatures'; // Endpoint pour les relevés de température
+// Modifié pour être plus générique ou cibler l'endpoint principal si c'est ce que la page attend
+const API_URL = '/temperatures';
 
-// Fonction pour récupérer les relevés de température des employés (pour l'admin client)
-const getTemperatureRecordsForAdminClient = async (adminClientId) => {
+// --- Fonctions utilitaires spécifiques (peuvent être appelées par getTemperatureRecords générique) ---
+
+const getTemperatureRecordsForAdminClient = async (adminClientIdFromToken) => {
   try {
-    const response = await axiosInstance.get(`${API_URL}/admin-client/${adminClientId}`);
+    // Si l'ID est extrait du token côté backend, pas besoin de le passer dans l'URL ici
+    const response = await axiosInstance.get(`/admin-client${API_URL}`); // Correspond à GET /api/admin-client/temperatures
     return response.data;
   } catch (error) {
     console.error('Erreur lors de la récupération des relevés de température pour l\'admin client:', error);
@@ -14,96 +16,41 @@ const getTemperatureRecordsForAdminClient = async (adminClientId) => {
   }
 };
 
-// Fonction pour ajouter un relevé de température (pour l'admin client)
-// Note: Le backend s'attend à ce que l'employé soit lié à l'admin_client du token.
-const addTemperatureRecord = async (employeeId, temperature, recordDate) => {
+const getTemperatureRecordsForEmployee = async (employeeIdFromToken) => {
   try {
-    const response = await axiosInstance.post(API_URL, { employeeId, temperature, recordDate });
+    // Si l'ID est extrait du token côté backend, pas besoin de le passer dans l'URL ici
+    const response = await axiosInstance.get(`/employer${API_URL}`); // Correspond à GET /api/employer/temperatures
     return response.data;
   } catch (error) {
-    console.error('Erreur lors de l\'ajout du relevé de température:', error);
+    console.error('Error fetching temperature records for employee:', error);
     throw error;
   }
 };
 
-// Fonction pour mettre à jour un relevé de température (pour l'admin client)
-const updateTemperatureRecord = async (recordId, temperature, recordDate) => {
-  try {
-    const response = await axiosInstance.put(`${API_URL}/${recordId}`, { temperature, recordDate });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du relevé de température:', error);
-    throw error;
-  }
-};
-
-// Fonction pour supprimer un relevé de température (pour l'admin client)
-const deleteTemperatureRecord = async (recordId) => {
-  try {
-    const response = await axiosInstance.delete(`${API_URL}/${recordId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la suppression du relevé de température:', error);
-    throw error;
-  }
-};
-
-
-// Ajoutez d'autres fonctions si nécessaire, par exemple pour un employé (employeur)
-// Pour un employé, l'endpoint serait différent, et potentiellement juste un post pour lui-même
-const addTemperatureRecordForEmployee = async (temperature, recordDate) => {
-  try {
-    // L'ID de l'employé est probablement géré par le backend via le token
-    const response = await axiosInstance.post(`${API_URL}/employee`, { temperature, recordDate });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de l\'ajout du relevé de température par l\'employé:', error);
-    throw error;
-  }
-};
-
-const getTemperatureRecordsForEmployee = async (employeeId) => {
-    try {
-        const response = await axiosInstance.get(`${API_URL}/employee/${employeeId}`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching temperature records for employee:', error);
-        throw error;
-    }
-};
-
-// NOUVELLE FONCTION: getTemperatureRecords (générique pour TemperatureRecordsPage.jsx)
-// Cette fonction tente de récupérer les relevés en fonction du rôle de l'utilisateur connecté.
+// --- Fonction générique utilisée par TemperatureRecordsPage.jsx pour GET ---
 const getTemperatureRecords = async () => {
   const userRole = localStorage.getItem('userRole');
-  const userId = localStorage.getItem('userId');
+  const userId = localStorage.getItem('userId'); // C'est l'ID de l'utilisateur qui se connecte
+  const clientId = localStorage.getItem('clientId'); // Ce sera le SIRET pour admin_client, ou null/undefined
 
   if (!userRole || !userId) {
-    // Si l'utilisateur n'est pas connecté ou si les informations sont manquantes,
-    // on ne peut pas récupérer les relevés spécifiques.
-    console.warn('Impossible de récupérer les relevés: rôle ou ID utilisateur manquant. Retourne un tableau vide.');
-    return []; // Retourne un tableau vide pour éviter les erreurs
+    console.warn('Impossible de récupérer les relevés: rôle ou ID utilisateur manquant dans localStorage. Retourne un tableau vide.');
+    return [];
   }
 
   try {
-    if (userRole === 'employer' || userRole === 'client') { // Si le rôle est 'employer' ou 'client'
-      // Récupère les relevés spécifiques à cet employé
-      return await getTemperatureRecordsForEmployee(userId);
-    } else if (userRole === 'admin_client') {
-      // Pour un admin_client, il faudrait potentiellement une logique pour récupérer
-      // les relevés de TOUS ses employés.
-      // La fonction `getTemperatureRecordsForAdminClient` prend un `adminClientId`
-      // qui doit être le SIRET de l'admin client, pas son ID utilisateur.
-      // Il faudrait adapter cette logique ou s'assurer que `TemperatureRecordsPage.jsx`
-      // appelle la fonction spécifique appropriée.
-      console.warn('getTemperatureRecords n\'est pas optimisé pour le rôle admin_client dans ce contexte. Retourne un tableau vide.');
-      return [];
-    } else if (userRole === 'super_admin') {
-      // Pour un super_admin, il faudrait un endpoint pour récupérer TOUS les relevés
-      // de tous les utilisateurs du système.
-      // Exemple: `axiosInstance.get('/admin/temperatures');`
-      console.warn('getTemperatureRecords n\'est pas optimisé pour le rôle super_admin dans ce contexte. Retourne un tableau vide.');
-      return [];
+    if (userRole === 'employer') { // Pour un employé, il récupère ses propres relevés
+      return await getTemperatureRecordsForEmployee(userId); // userId ici est l'ID de l'employé
+    } else if (userRole === 'admin_client') { // Pour un admin_client, il récupère les relevés de ses employés
+      // Assurez-vous que le client_id (SIRET) est bien dans le localStorage et le JWT
+      if (!clientId) {
+        console.warn('Admin Client ID (SIRET) manquant dans localStorage. Impossible de récupérer les relevés pour ses employés.');
+        return [];
+      }
+      return await getTemperatureRecordsForAdminClient(clientId);
+    } else if (userRole === 'super_admin') { // Pour un super_admin, il récupère TOUS les relevés
+      const response = await axiosInstance.get(`/admin${API_URL}`); // Correspond à GET /api/admin/temperatures
+      return response.data;
     } else {
       console.warn('Rôle utilisateur non géré par getTemperatureRecords:', userRole);
       return [];
@@ -114,16 +61,179 @@ const getTemperatureRecords = async () => {
   }
 };
 
+// --- Fonction générique utilisée par TemperatureRecordsPage.jsx pour POST ---
+// Elle va maintenant accepter l'objet recordData complet
+const addTemperatureRecord = async (recordData) => {
+  const userRole = localStorage.getItem('userRole');
+  let postUrl;
 
-export {
-  getTemperatureRecordsForAdminClient,
-  addTemperatureRecord,
-  updateTemperatureRecord,
-  deleteTemperatureRecord,
-  addTemperatureRecordForEmployee,
-  getTemperatureRecordsForEmployee,
-  getTemperatureRecords // Export de la nouvelle fonction générique
+  // Déterminez l'endpoint en fonction du rôle
+  if (userRole === 'employer') {
+    postUrl = `/employer${API_URL}`; // POST /api/employer/temperatures
+  } else if (userRole === 'admin_client') {
+    postUrl = `/admin-client${API_URL}`; // POST /api/admin-client/temperatures
+  } else if (userRole === 'super_admin') {
+    postUrl = `/admin${API_URL}`; // POST /api/admin/temperatures
+  } else {
+    // Fallback ou erreur si le rôle n'est pas géré
+    console.error('Rôle utilisateur non géré pour l\'ajout de relevé:', userRole);
+    throw new Error('Rôle utilisateur non autorisé à ajouter des relevés.');
+  }
+
+  try {
+    const response = await axiosInstance.post(postUrl, recordData); // Envoie l'objet entier
+    return response.data;
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du relevé de température:', error);
+    throw error;
+  }
 };
+
+// Exportez la fonction générique que la page utilise
+export {
+  getTemperatureRecords, // La fonction générique
+  addTemperatureRecord, // La fonction générique d'ajout
+  // Les fonctions spécifiques peuvent être utilisées en interne ou exportées si d'autres pages les appellent directement
+  getTemperatureRecordsForAdminClient,
+  getTemperatureRecordsForEmployee,
+  // updateTemperatureRecord, // Assurez-vous que ces fonctions sont appelées correctement si elles sont utilisées
+  // deleteTemperatureRecord,
+};
+
+
+
+
+
+
+
+
+
+// // frontend/src/services/temperatureService.js
+// import axiosInstance from '../api/axiosInstance'; // Assurez-vous que le chemin est correct
+
+// const API_URL = '/temperatures'; // Endpoint pour les relevés de température
+
+// // Fonction pour récupérer les relevés de température des employés (pour l'admin client)
+// const getTemperatureRecordsForAdminClient = async (adminClientId) => {
+//   try {
+//     const response = await axiosInstance.get(`${API_URL}/admin-client/${adminClientId}`);
+//     return response.data;
+//   } catch (error) {
+//     console.error('Erreur lors de la récupération des relevés de température pour l\'admin client:', error);
+//     throw error;
+//   }
+// };
+
+// // Fonction pour ajouter un relevé de température (pour l'admin client)
+// // Note: Le backend s'attend à ce que l'employé soit lié à l'admin_client du token.
+// const addTemperatureRecord = async (employeeId, temperature, recordDate) => {
+//   try {
+//     const response = await axiosInstance.post(API_URL, { employeeId, temperature, recordDate });
+//     return response.data;
+//   } catch (error) {
+//     console.error('Erreur lors de l\'ajout du relevé de température:', error);
+//     throw error;
+//   }
+// };
+
+// // Fonction pour mettre à jour un relevé de température (pour l'admin client)
+// const updateTemperatureRecord = async (recordId, temperature, recordDate) => {
+//   try {
+//     const response = await axiosInstance.put(`${API_URL}/${recordId}`, { temperature, recordDate });
+//     return response.data;
+//   } catch (error) {
+//     console.error('Erreur lors de la mise à jour du relevé de température:', error);
+//     throw error;
+//   }
+// };
+
+// // Fonction pour supprimer un relevé de température (pour l'admin client)
+// const deleteTemperatureRecord = async (recordId) => {
+//   try {
+//     const response = await axiosInstance.delete(`${API_URL}/${recordId}`);
+//     return response.data;
+//   } catch (error) {
+//     console.error('Erreur lors de la suppression du relevé de température:', error);
+//     throw error;
+//   }
+// };
+
+
+// // Ajoutez d'autres fonctions si nécessaire, par exemple pour un employé (employeur)
+// // Pour un employé, l'endpoint serait différent, et potentiellement juste un post pour lui-même
+// const addTemperatureRecordForEmployee = async (temperature, recordDate) => {
+//   try {
+//     // L'ID de l'employé est probablement géré par le backend via le token
+//     const response = await axiosInstance.post(`${API_URL}/employee`, { temperature, recordDate });
+//     return response.data;
+//   } catch (error) {
+//     console.error('Erreur lors de l\'ajout du relevé de température par l\'employé:', error);
+//     throw error;
+//   }
+// };
+
+// const getTemperatureRecordsForEmployee = async (employeeId) => {
+//     try {
+//         const response = await axiosInstance.get(`${API_URL}/employee/${employeeId}`);
+//         return response.data;
+//     } catch (error) {
+//         console.error('Error fetching temperature records for employee:', error);
+//         throw error;
+//     }
+// };
+
+// // NOUVELLE FONCTION: getTemperatureRecords (générique pour TemperatureRecordsPage.jsx)
+// // Cette fonction tente de récupérer les relevés en fonction du rôle de l'utilisateur connecté.
+// const getTemperatureRecords = async () => {
+//   const userRole = localStorage.getItem('userRole');
+//   const userId = localStorage.getItem('userId');
+
+//   if (!userRole || !userId) {
+//     // Si l'utilisateur n'est pas connecté ou si les informations sont manquantes,
+//     // on ne peut pas récupérer les relevés spécifiques.
+//     console.warn('Impossible de récupérer les relevés: rôle ou ID utilisateur manquant. Retourne un tableau vide.');
+//     return []; // Retourne un tableau vide pour éviter les erreurs
+//   }
+
+//   try {
+//     if (userRole === 'employer' || userRole === 'client') { // Si le rôle est 'employer' ou 'client'
+//       // Récupère les relevés spécifiques à cet employé
+//       return await getTemperatureRecordsForEmployee(userId);
+//     } else if (userRole === 'admin_client') {
+//       // Pour un admin_client, il faudrait potentiellement une logique pour récupérer
+//       // les relevés de TOUS ses employés.
+//       // La fonction `getTemperatureRecordsForAdminClient` prend un `adminClientId`
+//       // qui doit être le SIRET de l'admin client, pas son ID utilisateur.
+//       // Il faudrait adapter cette logique ou s'assurer que `TemperatureRecordsPage.jsx`
+//       // appelle la fonction spécifique appropriée.
+//       console.warn('getTemperatureRecords n\'est pas optimisé pour le rôle admin_client dans ce contexte. Retourne un tableau vide.');
+//       return [];
+//     } else if (userRole === 'super_admin') {
+//       // Pour un super_admin, il faudrait un endpoint pour récupérer TOUS les relevés
+//       // de tous les utilisateurs du système.
+//       // Exemple: `axiosInstance.get('/admin/temperatures');`
+//       console.warn('getTemperatureRecords n\'est pas optimisé pour le rôle super_admin dans ce contexte. Retourne un tableau vide.');
+//       return [];
+//     } else {
+//       console.warn('Rôle utilisateur non géré par getTemperatureRecords:', userRole);
+//       return [];
+//     }
+//   } catch (error) {
+//     console.error('Erreur lors de la récupération des relevés de température (générique):', error);
+//     throw error;
+//   }
+// };
+
+
+// export {
+//   getTemperatureRecordsForAdminClient,
+//   addTemperatureRecord,
+//   updateTemperatureRecord,
+//   deleteTemperatureRecord,
+//   addTemperatureRecordForEmployee,
+//   getTemperatureRecordsForEmployee,
+//   getTemperatureRecords // Export de la nouvelle fonction générique
+// };
 
 
 
