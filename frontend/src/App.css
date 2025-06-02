@@ -31,7 +31,7 @@ header{
 
 main{
 
-      height: 200vh !important;
+      max-height: max-content;
       padding: 5% !important;
 }
 
