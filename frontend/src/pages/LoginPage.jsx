@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './LoginPage.css';
 
-function LoginPage({ onLoginSuccess }) {
+// Ajout de la prop onCancel pour permettre à App.jsx de fermer le formulaire
+function LoginPage({ onLoginSuccess, onCancel }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,20 +28,19 @@ function LoginPage({ onLoginSuccess }) {
       });
 
       console.log('Connexion réussie:', response.data);
-      // MODIFIÉ ICI : Ajoutez 'siret' à la déstructuration de response.data
       const { token, role, id, siret } = response.data;
 
-      // Stocker le token, le rôle, l'ID et le SIRET (si présent) dans le localStorage
       localStorage.setItem('userToken', token);
       localStorage.setItem('userRole', role);
       localStorage.setItem('userId', id);
-      // AJOUTÉ ICI : Stocke le siret si l'utilisateur est un admin_client
       if (siret) {
-        localStorage.setItem('clientId', siret); // Utilisez 'clientId' pour la cohérence avec le backend
+        localStorage.setItem('clientId', siret);
+      } else {
+        localStorage.removeItem('clientId');
       }
 
       setSuccess('Connexion réussie ! Redirection...');
-      onLoginSuccess(role);
+      onLoginSuccess(role); // Appelle la fonction de rappel de App.jsx
     } catch (err) {
       console.error('Erreur de connexion:', err);
       if (err.response) {
@@ -87,7 +87,11 @@ function LoginPage({ onLoginSuccess }) {
         <button type="submit" className="submit-button" disabled={isSubmitting}>
           {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
         </button>
+        {onCancel && ( // Bouton Annuler pour fermer le formulaire
+          <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
+        )}
       </form>
+      {/* Ce paragraphe est conservé si vous voulez une indication, mais le bouton "S'enregistrer" est dans la navbar */}
       <p className="register-hint">
         Pas encore de compte ? Contactez votre administrateur.
       </p>
@@ -96,6 +100,126 @@ function LoginPage({ onLoginSuccess }) {
 }
 
 export default LoginPage;
+
+
+
+
+
+
+
+
+
+// // frontend/src/pages/LoginPage.jsx
+// import React, { useState } from 'react';
+// import axios from 'axios';
+// import './LoginPage.css';
+// import { Link } from 'react-router-dom'; // Importez Link pour la navigation
+
+// function LoginPage({ onLoginSuccess }) {
+//   const [email, setEmail] = useState('');
+//   const [password, setPassword] = useState('');
+//   const [error, setError] = useState('');
+//   const [success, setSuccess] = useState('');
+//   const [message, setMessage] = useState('');
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     console.log("Tentative de soumission du formulaire de connexion.");
+
+//     setError('');
+//     setSuccess('');
+//     setMessage('');
+//     setIsSubmitting(true);
+
+//     try {
+//       const response = await axios.post('http://localhost:5001/api/auth/login', {
+//         email,
+//         password,
+//       });
+
+//       console.log('Connexion réussie:', response.data);
+//       // MODIFIÉ ICI : Ajoutez 'siret' à la déstructuration de response.data
+//       const { token, role, id, siret } = response.data;
+
+//       // Stocker le token, le rôle, l'ID et le SIRET (si présent) dans le localStorage
+//       localStorage.setItem('userToken', token);
+//       localStorage.setItem('userRole', role);
+//       localStorage.setItem('userId', id);
+//       // AJOUTÉ ICI : Stocke le siret si l'utilisateur est un admin_client
+//       if (siret) {
+//         localStorage.setItem('clientId', siret); // Utilisez 'clientId' pour la cohérence avec le backend
+//       } else {
+//         // S'assurer que clientId est supprimé si l'utilisateur n'est pas un admin_client (ex: un employé)
+//         localStorage.removeItem('clientId');
+//       }
+
+
+//       setSuccess('Connexion réussie ! Redirection...');
+//       onLoginSuccess(role);
+//     } catch (err) {
+//       console.error('Erreur de connexion:', err);
+//       if (err.response) {
+//         setError(err.response.data.message || 'Erreur lors de la connexion.');
+//       } else if (err.request) {
+//         setError('Impossible de se connecter au serveur. Le backend est-il démarré et accessible ?');
+//       } else {
+//         setError('Erreur inattendue lors de la connexion.');
+//       }
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   return (
+//     <div className="login-page-container">
+//       <h2>Connexion</h2>
+//       {error && <p className="error-message">{error}</p>}
+//       {success && <p className="success-message">{success}</p>}
+//       {message && <p className="info-message">{message}</p>}
+//       <form onSubmit={handleSubmit} className="login-form">
+//         <div className="form-group">
+//           <label htmlFor="email">Email :</label>
+//           <input
+//             type="email"
+//             id="email"
+//             value={email}
+//             onChange={(e) => setEmail(e.target.value)}
+//             required
+//             autoComplete="email"
+//           />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="password">Mot de passe :</label>
+//           <input
+//             type="password"
+//             id="password"
+//             value={password}
+//             onChange={(e) => setPassword(e.target.value)}
+//             required
+//             autoComplete="current-password"
+//           />
+//         </div>
+//         <button type="submit" className="submit-button" disabled={isSubmitting}>
+//           {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
+//         </button>
+//       </form>
+//       <p className="register-hint">
+//         Pas encore de compte ? Contactez votre administrateur.
+//       </p>
+//       {/* NOUVEAU BOUTON POUR L'ENREGISTREMENT ADMIN CLIENT */}
+//       <div className="register-admin-client-section">
+//         <p>Vous êtes un nouvel administrateur client ?</p>
+//         <Link to="/register-admin-client" className="register-admin-button">
+//           S'enregistrer comme Admin Client
+//         </Link>
+//       </div>
+//     </div>
+//   );
+// }
+
+// export default LoginPage;
+
 
 
 

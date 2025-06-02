@@ -11,6 +11,41 @@
   width: 100% !important;
 }
 
+header{
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content:flex-end;
+  background-color: #3185aa;
+  height: 15vh;
+}
+
+
+
+.App {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding:0% !important;
+    
+}
+
+main{
+
+      height: 200vh !important;
+      padding: 5% !important;
+}
+
+.auth-buttons{
+  width: 100%;
+  display: flex;
+  
+}
+
+
+button{
+  margin:1%;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
