@@ -69,6 +69,7 @@ function LoginPage({ onLoginSuccess, onCancel }) {
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="votre.email@exemple.com"
             required
             autoComplete="email"
           />
@@ -80,16 +81,20 @@ function LoginPage({ onLoginSuccess, onCancel }) {
             id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Votre mot de passe secret"
             required
             autoComplete="current-password"
           />
         </div>
+      <div className="buttonCantainer">
         <button type="submit" className="submit-button" disabled={isSubmitting}>
           {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
         </button>
         {onCancel && ( // Bouton Annuler pour fermer le formulaire
           <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
+        
         )}
+      </div>
       </form>
       {/* Ce paragraphe est conservé si vous voulez une indication, mais le bouton "S'enregistrer" est dans la navbar */}
       <p className="register-hint">

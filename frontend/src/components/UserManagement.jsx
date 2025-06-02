@@ -164,7 +164,7 @@ const UserManagement = () => {
                 <h3>Ajouter un nouvel utilisateur</h3>
                 <form onSubmit={handleNewUserSubmit}>
                     <div className="form-row">
-                        <input type="text" name="nom_entreprise" placeholder="Nom Entreprise" value={newUser.nom_entreprise} onChange={handleNewUserChange} required />
+                        <input type="text" name="nom_entreprise" placeholder="Nom Entreprise" value={newUser.nom_entreprise} onChange={handleNewUserChange}  required />
                         <input type="text" name="nom_client" placeholder="Nom Client" value={newUser.nom_client} onChange={handleNewUserChange} required />
                         <input type="text" name="prenom_client" placeholder="Prénom Client" value={newUser.prenom_client} onChange={handleNewUserChange} required />
                     </div>
@@ -175,7 +175,7 @@ const UserManagement = () => {
                     </div>
                     <div className="form-row">
                         <input type="text" name="adresse" placeholder="Adresse" value={newUser.adresse} onChange={handleNewUserChange} />
-                        <input type="text" name="siret" placeholder="Siret" value={newUser.siret} onChange={handleNewUserChange} />
+                        <input type="text" name="siret" placeholder="55217863900132" value={newUser.siret} onChange={handleNewUserChange} />
                         <select name="role" value={newUser.role} onChange={handleNewUserChange}>
                             <option value="client">Client</option>
                             <option value="admin">Admin</option>
@@ -228,31 +228,34 @@ const UserManagement = () => {
                         <form onSubmit={handleEditUserSubmit}>
                             <div className="form-group">
                                 <label>Nom Entreprise:</label>
-                                <input type="text" name="nom_entreprise" value={editingUser.nom_entreprise} onChange={handleEditUserChange} required />
+                                <input type="text" name="nom_entreprise" value={editingUser.nom_entreprise} onChange={handleEditUserChange} placeholder="SARL RESTAURENT"
+required />
                             </div>
                             <div className="form-group">
                                 <label>Nom Client:</label>
-                                <input type="text" name="nom_client" value={editingUser.nom_client} onChange={handleEditUserChange} required />
+                                <input type="text" name="nom_client" value={editingUser.nom_client} onChange={handleEditUserChange} placeholder="DURANT"
+ required />
                             </div>
                             <div className="form-group">
                                 <label>Prénom Client:</label>
-                                <input type="text" name="prenom_client" value={editingUser.prenom_client} onChange={handleEditUserChange} required />
+                                <input type="text" name="prenom_client" value={editingUser.prenom_client} onChange={handleEditUserChange} placeholder="ALEXANDRE"
+ required />
                             </div>
                             <div className="form-group">
                                 <label>Email:</label>
-                                <input type="email" name="email" value={editingUser.email} onChange={handleEditUserChange} required />
+                                <input type="email" name="email" value={editingUser.email} onChange={handleEditUserChange} placeholder="votre.email@exemple.com" required />
                             </div>
                              <div className="form-group">
                                 <label>Téléphone:</label>
-                                <input type="text" name="telephone" value={editingUser.telephone || ''} onChange={handleEditUserChange} />
+                                <input type="text" name="telephone" value={editingUser.telephone || ''} onChange={handleEditUserChange} placeholder="07XXXXXXXX" />
                             </div>
                             <div className="form-group">
                                 <label>Adresse:</label>
-                                <input type="text" name="adresse" value={editingUser.adresse || ''} onChange={handleEditUserChange} />
+                                <input type="text" name="adresse" value={editingUser.adresse || ''} onChange={handleEditUserChange} placeholder="123 rue de la Republique 75010 Paris" />
                             </div>
                             <div className="form-group">
                                 <label>Siret:</label>
-                                <input type="text" name="siret" value={editingUser.siret || ''} onChange={handleEditUserChange} />
+                                <input type="text" name="siret" value={editingUser.siret || ''} onChange={handleEditUserChange} placeholder="55217863900132" />
                             </div>
                             {/* Le mot de passe n'est pas édité directement ici pour la sécurité */}
                             {/* Pour changer le mot de passe, il faudrait un champ séparé et un appel API dédié */}

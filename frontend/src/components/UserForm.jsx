@@ -218,6 +218,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             name="nom_entreprise"
             value={formData.nom_entreprise}
             onChange={handleChange}
+            placeholder="SARL RESTAURENT"
             required
             readOnly={isCreatingEmployerByAdminClient}
             className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
@@ -225,23 +226,25 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
         </div>
         <div className="form-group">
           <label htmlFor="nom_client">{isCreatingEmployerByAdminClient ? 'Nom Employé:' : 'Nom Contact:'}</label>
-          <input type="text" id="nom_client" name="nom_client" value={formData.nom_client} onChange={handleChange} required />
+          <input type="text" id="nom_client" name="nom_client" value={formData.nom_client} onChange={handleChange} placeholder="DURANT" required />
         </div>
         <div className="form-group">
           <label htmlFor="prenom_client">{isCreatingEmployerByAdminClient ? 'Prénom Employé:' : 'Prénom Contact:'}</label>
-          <input type="text" id="prenom_client" name="prenom_client" value={formData.prenom_client} onChange={handleChange} required />
+          <input type="text" id="prenom_client" name="prenom_client" value={formData.prenom_client} onChange={handleChange} placeholder="ALEXANDRE" required />
         </div>
         <div className="form-group">
           <label htmlFor="email">Email:</label>
-          <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required />
+          <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} placeholder="votre.email@exemple.com" required />
         </div>
         <div className="form-group">
           <label htmlFor="password">Mot de passe: {isUpdate && <span className="optional-field">(Laisser vide pour ne pas changer)</span>}</label>
-          <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} required={!isUpdate} />
+          <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} placeholder="Votre mot de passe secret"
+ required={!isUpdate} />
         </div>
         <div className="form-group">
           <label htmlFor="telephone">Téléphone:</label>
-          <input type="text" id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} />
+          <input type="text" id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} placeholder="07XXXXXXXX"
+ />
         </div>
         <div className="form-group">
           <label htmlFor="adresse">Adresse:</label>
@@ -251,6 +254,7 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             name="adresse"
             value={formData.adresse}
             onChange={handleChange}
+            placeholder="123 rue de la republique 75010 paris "
             readOnly={isCreatingEmployerByAdminClient}
             className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
           />
@@ -269,6 +273,8 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
                     name="siret"
                     value={formData.siret}
                     onChange={handleChange}
+                    placeholder="55217863900132"
+
                     required={isRegisteringAdminClient || formData.role === 'admin_client'}
                     readOnly={isCreatingEmployerByAdminClient || (formData.role !== 'admin_client' && !isRegisteringAdminClient)} // ReadOnly si pas admin_client et pas en mode enregistrement
                     className={(isCreatingEmployerByAdminClient || (formData.role !== 'admin_client' && !isRegisteringAdminClient)) ? 'read-only' : ''}
