@@ -303,13 +303,14 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             <input type="text" id="admin_client_siret" name="admin_client_siret" value={formData.admin_client_siret} onChange={handleChange} />
           </div>
         )}
-
-        <button type="submit" disabled={isSubmitting || loadingAdminClientData}>
+    <div className="buttonContainer">
+        <button type="submit" disabled={isSubmitting || loadingAdminClientData} className="buttonSubmit">
           {isSubmitting ? 'Envoi en cours...' : (isUpdate ? 'Modifier l\'utilisateur' : 'Créer l\'utilisateur')}
         </button>
         {onCancel && (
           <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
         )}
+    </div>
         {message && <p className="form-message">{message}</p>}
       </form>
     </div>
