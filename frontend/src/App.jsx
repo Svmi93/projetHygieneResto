@@ -8,6 +8,7 @@ import SuperAdminDashboardPage from './pages/AdminDashboardPage';
 import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
 import RegisterAdminClientPage from './pages/RegisterAdminClientPage'; // Importé comme composant de formulaire
 import PrivateRoute from './components/PrivateRoute';
+import HomePage from './components/HomePage'; // Importez votre composant HomePage
 import './App.css'; // Styles globaux pour l'application
 
 function App() {
@@ -111,6 +112,7 @@ function App() {
             )}
           </nav>
         </header>
+        
         <main>
           <Routes>
             {/* La route par défaut affichera les formulaires si non authentifié, ou le dashboard */}
@@ -133,9 +135,12 @@ function App() {
                       <p>Utilisez les boutons en haut à droite pour accéder aux formulaires.</p>
                     </div>
                   )}
+                  
                 </div>
+                
               )
             } />
+            
 
             {/* Routes protégées qui nécessitent une authentification et un rôle spécifique */}
             <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
@@ -148,6 +153,7 @@ function App() {
             <Route path="/register-admin-client" element={<div className="redirect-message">Redirection vers la page d'accueil pour enregistrement...</div>} />
 
           </Routes>
+          <HomePage /> {/* Ceci rendra votre page d'accueil */}
         </main>
       </div>
     </Router>
