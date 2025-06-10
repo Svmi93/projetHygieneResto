@@ -19,8 +19,10 @@
 }
 
 .subtitle {
-  font-size: 1.2em;
-  color: #7f8c8d;
+    font-size: 2em;
+    color: #7f8c8d;
+    margin-top: 3%;
+    font-weight: bold;
 }
 
 .features-section, .promise-section {
@@ -28,9 +30,10 @@
 }
 
 .features-section h2, .promise-section h2 {
-  color: #2c3e50;
-  text-align: center;
-  margin-bottom: 30px;
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 4%;
+    margin-top: 5%;
 }
 
 .feature-item {
@@ -69,4 +72,11 @@
   background-color: #27ae60;
 }
 
+
+
+
+.intro-section p{
+
+  margin-bottom:5%;
+}
 /* Ajoutez d'autres styles pour les icônes si vous les insérez */
