@@ -15,9 +15,14 @@ header{
   display: flex;
   width: 100%;
   align-items: center;
-  justify-content:flex-end;
+  justify-content:space-between;
   background-color: #3185aa;
-  height: 15vh;
+  height: 17vh;
+}
+
+
+.home-page-logo{
+  width: 8rem;
 }
 
 
@@ -47,7 +52,7 @@ button{
 }
 
 .logo {
-  height: 6em;
+  height: 11em;
   padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;

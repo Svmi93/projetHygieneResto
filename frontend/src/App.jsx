@@ -86,9 +86,13 @@ function App() {
   return (
     <Router>
       <div className="App">
+        
         <header className="App-header">
+          <div className="logo"><img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" /></div>
           <nav className="main-nav">
+             
             {/* Boutons visibles si l'utilisateur n'est PAS authentifié */}
+            
             {!isAuthenticated ? (
               <div className="auth-buttons"> {/* Conteneur pour les boutons à droite */}
                 <button onClick={openLoginForm} className="nav-button">Connexion</button>
@@ -110,6 +114,7 @@ function App() {
                 <button onClick={handleLogout} className="logout-button">Déconnexion</button>
               </div>
             )}
+            
           </nav>
         </header>
         

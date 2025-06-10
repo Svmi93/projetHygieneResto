@@ -3,20 +3,20 @@ import React from 'react';
 import './HomePage.css'; // Assurez-vous que ce chemin est correct
 
 function HomePage() {
-  const apiName = "HYGIE-RESTO API"; // <--- REMPLACEZ PAR LE NOM DE VOTRE API
+  const apiName = "HYGIE-RESTO"; // <--- REMPLACEZ PAR LE NOM DE VOTRE API
 
   return (
     <div className="home-page-container">
-      <header className="home-page-header">
+      <div className="home-page-header">
         {/* Vous pouvez insérer votre logo ici. Par exemple: */}
-        {/* <img src="/votre-logo.png" alt="Logo de l'API" className="home-page-logo" /> */}
+        <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
         <h1>Bienvenue sur {apiName} : L'Hygiène et la Sécurité Simplifiées pour la Restauration</h1>
         <p className="subtitle">Préparez-vous à chaque contrôle, sans stress.</p>
-      </header>
+      </div>
 
       <section className="intro-section">
         <p>
-          Dans le monde exigeant de la restauration et des commerces alimentaires, l'**hygiène**, la **sécurité** et la **traçabilité** sont essentielles. Notre API est conçue pour être votre alliée, transformant la complexité des normes en procédures claires et gérables. Soyez prêt à tout moment à passer un contrôle sans la moindre inquiétude !
+          Dans le monde exigeant de la restauration et des commerces alimentaires, l'hygiène, la sécurité et la traçabilité sont essentielles. Notre API est conçue pour être votre alliée, transformant la complexité des normes en procédures claires et gérables. Soyez prêt à tout moment à passer un contrôle sans la moindre inquiétude !
         </p>
       </section>
 
@@ -79,9 +79,9 @@ function HomePage() {
       <footer className="call-to-action-footer">
         <h2>Prêt à Transformer votre Gestion ?</h2>
         <div className="action-buttons">
-          <button className="cta-button">Contactez-nous</button>
-          <button className="cta-button">Demandez une démo</button>
-          <button className="cta-button">Accédez à la documentation API</button>
+          <button className="cta-button"><a href="#">Contactez-nous</a></button>
+          {/* <button className="cta-button">Demandez une démo</button> */}
+          {/* <button className="cta-button">Accédez à la documentation API</button> */}
         </div>
       </footer>
     </div>
