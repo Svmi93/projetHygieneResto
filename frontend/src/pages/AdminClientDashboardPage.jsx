@@ -1,21 +1,30 @@
 // frontend/src/pages/AdminClientDashboardPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '../api/axiosInstance'; // Utilise axiosInstance pour la cohérence
 import DashboardLayout from '../components/DashboardLayout';
 import UserForm from '../components/UserForm';
-import TemperatureEntryForm from '../components/TemperatureEntryForm'; // Gardé si utilisé ailleurs, sinon peut être retiré
+import TemperatureEntryForm from '../components/TemperatureEntryForm';
 import EquipmentForm from '../components/EquipmentForm';
 import './AdminClientDashboardPage.css';
 
-// --- IMPORTS POUR LES PHOTOS ---
-import PhotoUploadForm from '../components/PhotoUploadForm'; // <<< NOUVEL IMPORT
-import PhotoGallery from '../components/PhotoGallery';     // <<< NOUVEL IMPORT
+// --- IMPORTS POUR LES PHOTOS (ANCIENS) ---
+// Ces imports ne sont plus utilisés directement ici, car la gestion des photos est maintenant dans la modale de traçabilité
+// import PhotoUploadForm from '../components/PhotoUploadForm'; 
+// import PhotoGallery from '../components/PhotoGallery';     
 // --- FIN IMPORTS PHOTOS ---
 
-// --- NOUVEAUX IMPORTS POUR LES ALERTES ---
-import AlertPopup from '../components/AlertPopup'; // Importez le composant de pop-up
-import { getMyAlerts, markAlertAsRead } from '../services/alertService'; // Importez le service d'alertes
-// --- FIN NOUVEAUX IMPORTS ---
+// --- IMPORTS POUR LES ALERTES ---
+import AlertPopup from '../components/AlertPopup';
+import { getMyAlerts, markAlertAsRead } from '../services/alertService';
+// --- FIN IMPORTS ALERTES ---
+
+// --- NOUVEAUX IMPORTS POUR LA TRAÇABILITÉ ---
+import TraceabilityModal from '../components/TraceabilityModal'; // Importe la nouvelle modale
+// --- FIN NOUVEAUX IMPORTS TRAÇABILITÉ ---
+
+// --- NOUVEL IMPORT POUR LA GESTION DES CLIENTS ---
+import UserClientManagement from '../components/UserClientManagement'; // Importe le composant de gestion des clients
+// --- FIN NOUVEL IMPORT ---
 
 const AdminClientDashboardPage = () => {
   const [employees, setEmployees] = useState([]);
@@ -29,31 +38,38 @@ const AdminClientDashboardPage = () => {
   const [errorEquipments, setErrorEquipments] = useState('');
   const [adminClientProfile, setAdminClientProfile] = useState(null);
 
-  // --- NOUVEAUX ÉTATS POUR LES ALERTES ---
+  // --- ÉTATS POUR LES ALERTES ---
   const [alerts, setAlerts] = useState([]);
-  const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
-  // --- FIN NOUVEAUX ÉTATS ---
+  const [currentAlert, setCurrentAlert] = useState(null);
+  // --- FIN ÉTATS ALERTES ---
 
-  // --- NOUVEAUX ÉTATS POUR LES PHOTOS ---
-  const [adminClientSiret, setAdminClientSiret] = useState(null); // <<< NOUVEL ÉTAT POUR LE SIRET
-  const [refreshPhotos, setRefreshPhotos] = useState(0); // <<< NOUVEL ÉTAT pour forcer le rechargement de la galerie
-  // --- FIN NOUVEAUX ÉTATS PHOTOS ---
+  // --- ÉTATS POUR LA TRAÇABILITÉ ---
+  const [adminClientSiret, setAdminClientSiret] = useState(null);
+  const [showTraceabilityModal, setShowTraceabilityModal] = useState(false); // Contrôle l'affichage de la modale
+  const [refreshTraceability, setRefreshTraceability] = useState(0); // Pour forcer le rechargement de la galerie dans la modale
+  const [currentUserId, setCurrentUserId] = useState(null); // Pour passer l'ID de l'employé qui upload
+  // --- FIN ÉTATS TRAÇABILITÉ ---
 
 
   useEffect(() => {
+    // Récupère l'ID de l'utilisateur connecté (qui est l'Admin Client ici)
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      setCurrentUserId(userId);
+    }
+
     fetchAdminClientProfile();
     fetchMyEmployees();
     fetchEmployeeTemperatureRecords();
     fetchEquipments();
 
-    // --- NOUVELLE LOGIQUE POUR LES ALERTES ---
+    // --- LOGIQUE POUR LES ALERTES ---
     const fetchAndDisplayAlerts = async () => {
       try {
         const fetchedAlerts = await getMyAlerts();
         setAlerts(fetchedAlerts);
-        // Si des alertes sont en statut 'new', affiche la première en pop-up
         const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
-        if (newAlert && !currentAlert) { // N'affiche que si aucune alerte n'est déjà affichée
+        if (newAlert && !currentAlert) {
           setCurrentAlert(newAlert);
         }
       } catch (error) {
@@ -61,47 +77,37 @@ const AdminClientDashboardPage = () => {
       }
     };
 
-    fetchAndDisplayAlerts(); // Récupère les alertes au chargement initial
-
-    // Polling pour vérifier les nouvelles alertes toutes les minutes
-    // Soyez PRUDENT avec setInterval : assurez-vous de bien le nettoyer !
-    const alertInterval = setInterval(fetchAndDisplayAlerts, 60000); // Vérifie toutes les minutes
+    fetchAndDisplayAlerts();
+    const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
 
     return () => {
-      // Nettoyage à la désinstallation du composant
       clearInterval(alertInterval);
     };
-    // --- FIN NOUVELLE LOGIQUE POUR LES ALERTES ---
+  }, [currentAlert, refreshTraceability]); // refreshTraceability ajouté aux dépendances
 
-  }, [currentAlert, refreshPhotos]); // <<< AJOUTE refreshPhotos aux dépendances pour le rechargement des photos
-
-  // --- NOUVELLE FONCTION POUR MARQUER L'ALERTE COMME LUE ---
+  // --- FONCTION POUR MARQUER L'ALERTE COMME LUE ---
   const handleDismissAlert = async () => {
     if (currentAlert) {
       try {
         await markAlertAsRead(currentAlert.id);
-        // Optionnel : Mettre à jour l'état des alertes pour refléter que celle-ci est lue
         setAlerts(prevAlerts => prevAlerts.map(a =>
           a.id === currentAlert.id ? { ...a, status: 'read' } : a
         ));
-        setCurrentAlert(null); // Fermer la pop-up
+        setCurrentAlert(null);
       } catch (error) {
         console.error('Erreur lors du marquage de l\'alerte comme lue:', error);
       }
     }
   };
-  // --- FIN NOUVELLE FONCTION ---
+  // --- FIN FONCTION ---
 
   const fetchAdminClientProfile = async () => {
     try {
-      const token = localStorage.getItem('userToken');
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
-      const response = await axios.get('http://localhost:5001/api/users/profile', config);
+      const response = await axiosInstance.get('/users/profile');
       setAdminClientProfile(response.data);
-      // <<< AJOUTE ICI : Stocke le SIRET dans l'état local
       if (response.data && response.data.siret) {
         setAdminClientSiret(response.data.siret);
-        localStorage.setItem('userSiret', response.data.siret); // Stocke le SIRET dans localStorage aussi
+        localStorage.setItem('userSiret', response.data.siret);
       }
     } catch (err) {
       console.error('Erreur lors du chargement du profil de l\'Admin Client:', err);
@@ -112,9 +118,7 @@ const AdminClientDashboardPage = () => {
     setLoadingEmployees(true);
     setErrorEmployees('');
     try {
-      const token = localStorage.getItem('userToken');
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
-      const response = await axios.get('http://localhost:5001/api/admin-client/employees', config);
+      const response = await axiosInstance.get('/admin-client/employees');
       if (Array.isArray(response.data)) {
         setEmployees(response.data);
       } else {
@@ -137,9 +141,7 @@ const AdminClientDashboardPage = () => {
     setLoadingTemperatures(true);
     setErrorTemperatures('');
     try {
-      const token = localStorage.getItem('userToken');
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
-      const response = await axios.get('http://localhost:5001/api/admin-client/temperatures', config);
+      const response = await axiosInstance.get('/admin-client/temperatures');
       if (Array.isArray(response.data)) {
         setTemperatureRecords(response.data);
       } else {
@@ -158,9 +160,7 @@ const AdminClientDashboardPage = () => {
     setLoadingEquipments(true);
     setErrorEquipments('');
     try {
-      const token = localStorage.getItem('userToken');
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
-      const response = await axios.get('http://localhost:5001/api/admin-client/equipments', config);
+      const response = await axiosInstance.get('/admin-client/equipments');
       if (response.data && Array.isArray(response.data.equipments)) {
         setEquipments(response.data.equipments);
       } else {
@@ -187,9 +187,7 @@ const AdminClientDashboardPage = () => {
   const handleDeleteEquipment = async (equipmentId) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cet équipement ?")) {
       try {
-        const token = localStorage.getItem('userToken');
-        const config = { headers: { 'Authorization': `Bearer ${token}` } };
-        await axios.delete(`http://localhost:5001/api/admin-client/equipments/${equipmentId}`, config);
+        await axiosInstance.delete(`/admin-client/equipments/${equipmentId}`);
         setEquipments(prev => prev.filter(eq => eq.id !== equipmentId));
         alert('Équipement supprimé avec succès.');
       } catch (err) {
@@ -199,9 +197,9 @@ const AdminClientDashboardPage = () => {
     }
   };
 
-  // --- FONCTION POUR RAFRAÎCHIR LA GALERIE PHOTO ---
-  const handlePhotoActionSuccess = () => {
-    setRefreshPhotos(prev => prev + 1); // Incrémente pour déclencher le useEffect dans PhotoGallery
+  // --- FONCTION POUR RAFRAÎCHIR LA GALERIE DE TRAÇABILITÉ ---
+  const handleTraceabilityActionSuccess = () => {
+    setRefreshTraceability(prev => prev + 1); // Incrémente pour déclencher le rechargement
   };
   // --- FIN FONCTION RAFRAÎCHIR ---
 
@@ -212,7 +210,7 @@ const AdminClientDashboardPage = () => {
     isCreatingEmployeeByAdminClient: true
   };
 
-  // --- AJOUT DE NOUVEAUX BOUTONS POUR LES PHOTOS ---
+  // --- DÉFINITION DES BOUTONS DE LA BARRE LATÉRALE ---
   const sidebarButtons = [
     {
       label: 'Gérer mes Employés',
@@ -253,7 +251,7 @@ const AdminClientDashboardPage = () => {
             <UserForm
               onUserCreated={handleEmployeeCreated}
               initialData={employeeFormInitialData}
-              apiEndpointForCreation="http://localhost:5001/api/admin-client/employees"
+              apiEndpointForCreation="/admin-client/employees"
               isCreatingEmployeeByAdminClient={true}
             />
           ) : (
@@ -343,29 +341,28 @@ const AdminClientDashboardPage = () => {
       )
     },
     {
-      label: 'Gérer les Photos', // <<< NOUVEAU BOUTON POUR LES PHOTOS
-      title: 'Prendre et consulter les photos de produits',
+      label: 'Traçabilité', // NOUVEAU BOUTON POUR LA TRAÇABILITÉ
+      title: 'Gérer les enregistrements de traçabilité (photos, produits, dates)',
+      onClick: () => setShowTraceabilityModal(true), // Ouvre la modale
+      content: null // Le contenu est dans la modale, pas directement dans le DashboardLayout
+    },
+    { // NOUVEAU BOUTON : Gérer les Clients
+      label: 'Gérer les Clients',
+      title: 'Gérer les informations de vos clients et de leurs établissements',
       content: (
         <div className="admin-section">
-          {adminClientSiret ? ( // S'assure que le SIRET est disponible avant d'afficher les composants
-            <>
-              <PhotoUploadForm siret={adminClientSiret} onPhotoUploadSuccess={handlePhotoActionSuccess} />
-              <hr style={{ margin: '30px 0', borderColor: '#eee' }} />
-              <PhotoGallery siret={adminClientSiret} currentUserRole={localStorage.getItem('userRole')} onPhotoDeleted={handlePhotoActionSuccess} key={refreshPhotos} />
-            </>
-          ) : (
-            <p>Chargement des informations client pour les photos...</p>
-          )}
+          {/* Le composant UserClientManagement sera affiché ici */}
+          <UserClientManagement />
         </div>
       )
     }
   ];
-  // --- FIN AJOUT DE NOUVEAUX BOUTONS ---
+  // --- FIN DÉFINITION DES BOUTONS ---
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
       <h2 className="welcome-message">Tableau de bord Admin Client</h2>
-      <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements et leurs relevés de température.</p>
+      <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements, leurs relevés de température et la traçabilité.</p>
 
       {/* --- AFFICHAGE DE LA POP-UP D'ALERTE --- */}
       {currentAlert && (
@@ -375,11 +372,417 @@ const AdminClientDashboardPage = () => {
           />
       )}
       {/* --- FIN AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+
+      {/* --- AFFICHAGE DE LA MODALE DE TRAÇABILITÉ --- */}
+      {showTraceabilityModal && adminClientSiret && currentUserId && (
+        <TraceabilityModal
+          siret={adminClientSiret}
+          employeeId={currentUserId} // L'Admin Client est l'employé qui crée l'enregistrement ici
+          onClose={() => setShowTraceabilityModal(false)}
+          onRecordActionSuccess={handleTraceabilityActionSuccess}
+        />
+      )}
+      {/* --- FIN AFFICHAGE MODALE TRAÇABILITÉ --- */}
     </DashboardLayout>
   );
 };
 
 export default AdminClientDashboardPage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // frontend/src/pages/AdminClientDashboardPage.jsx
+// import React, { useState, useEffect } from 'react';
+// import axios from 'axios';
+// import DashboardLayout from '../components/DashboardLayout';
+// import UserForm from '../components/UserForm';
+// import TemperatureEntryForm from '../components/TemperatureEntryForm'; // Gardé si utilisé ailleurs, sinon peut être retiré
+// import EquipmentForm from '../components/EquipmentForm';
+// import './AdminClientDashboardPage.css';
+
+// // --- IMPORTS POUR LES PHOTOS ---
+// import PhotoUploadForm from '../components/PhotoUploadForm'; // <<< NOUVEL IMPORT
+// import PhotoGallery from '../components/PhotoGallery';     // <<< NOUVEL IMPORT
+// // --- FIN IMPORTS PHOTOS ---
+
+// // --- NOUVEAUX IMPORTS POUR LES ALERTES ---
+// import AlertPopup from '../components/AlertPopup'; // Importez le composant de pop-up
+// import { getMyAlerts, markAlertAsRead } from '../services/alertService'; // Importez le service d'alertes
+// // --- FIN NOUVEAUX IMPORTS ---
+
+// const AdminClientDashboardPage = () => {
+//   const [employees, setEmployees] = useState([]);
+//   const [temperatureRecords, setTemperatureRecords] = useState([]);
+//   const [equipments, setEquipments] = useState([]);
+//   const [loadingEmployees, setLoadingEmployees] = useState(true);
+//   const [errorEmployees, setErrorEmployees] = useState('');
+//   const [loadingTemperatures, setLoadingTemperatures] = useState(true);
+//   const [errorTemperatures, setErrorTemperatures] = useState('');
+//   const [loadingEquipments, setLoadingEquipments] = useState(true);
+//   const [errorEquipments, setErrorEquipments] = useState('');
+//   const [adminClientProfile, setAdminClientProfile] = useState(null);
+
+//   // --- NOUVEAUX ÉTATS POUR LES ALERTES ---
+//   const [alerts, setAlerts] = useState([]);
+//   const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
+//   // --- FIN NOUVEAUX ÉTATS ---
+
+//   // --- NOUVEAUX ÉTATS POUR LES PHOTOS ---
+//   const [adminClientSiret, setAdminClientSiret] = useState(null); // <<< NOUVEL ÉTAT POUR LE SIRET
+//   const [refreshPhotos, setRefreshPhotos] = useState(0); // <<< NOUVEL ÉTAT pour forcer le rechargement de la galerie
+//   // --- FIN NOUVEAUX ÉTATS PHOTOS ---
+
+
+//   useEffect(() => {
+//     fetchAdminClientProfile();
+//     fetchMyEmployees();
+//     fetchEmployeeTemperatureRecords();
+//     fetchEquipments();
+
+//     // --- NOUVELLE LOGIQUE POUR LES ALERTES ---
+//     const fetchAndDisplayAlerts = async () => {
+//       try {
+//         const fetchedAlerts = await getMyAlerts();
+//         setAlerts(fetchedAlerts);
+//         // Si des alertes sont en statut 'new', affiche la première en pop-up
+//         const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
+//         if (newAlert && !currentAlert) { // N'affiche que si aucune alerte n'est déjà affichée
+//           setCurrentAlert(newAlert);
+//         }
+//       } catch (error) {
+//         console.error('Erreur lors de la récupération des alertes:', error);
+//       }
+//     };
+
+//     fetchAndDisplayAlerts(); // Récupère les alertes au chargement initial
+
+//     // Polling pour vérifier les nouvelles alertes toutes les minutes
+//     // Soyez PRUDENT avec setInterval : assurez-vous de bien le nettoyer !
+//     const alertInterval = setInterval(fetchAndDisplayAlerts, 60000); // Vérifie toutes les minutes
+
+//     return () => {
+//       // Nettoyage à la désinstallation du composant
+//       clearInterval(alertInterval);
+//     };
+//     // --- FIN NOUVELLE LOGIQUE POUR LES ALERTES ---
+
+//   }, [currentAlert, refreshPhotos]); // <<< AJOUTE refreshPhotos aux dépendances pour le rechargement des photos
+
+//   // --- NOUVELLE FONCTION POUR MARQUER L'ALERTE COMME LUE ---
+//   const handleDismissAlert = async () => {
+//     if (currentAlert) {
+//       try {
+//         await markAlertAsRead(currentAlert.id);
+//         // Optionnel : Mettre à jour l'état des alertes pour refléter que celle-ci est lue
+//         setAlerts(prevAlerts => prevAlerts.map(a =>
+//           a.id === currentAlert.id ? { ...a, status: 'read' } : a
+//         ));
+//         setCurrentAlert(null); // Fermer la pop-up
+//       } catch (error) {
+//         console.error('Erreur lors du marquage de l\'alerte comme lue:', error);
+//       }
+//     }
+//   };
+//   // --- FIN NOUVELLE FONCTION ---
+
+//   const fetchAdminClientProfile = async () => {
+//     try {
+//       const token = localStorage.getItem('userToken');
+//       const config = { headers: { 'Authorization': `Bearer ${token}` } };
+//       const response = await axios.get('http://localhost:5001/api/users/profile', config);
+//       setAdminClientProfile(response.data);
+//       // <<< AJOUTE ICI : Stocke le SIRET dans l'état local
+//       if (response.data && response.data.siret) {
+//         setAdminClientSiret(response.data.siret);
+//         localStorage.setItem('userSiret', response.data.siret); // Stocke le SIRET dans localStorage aussi
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement du profil de l\'Admin Client:', err);
+//     }
+//   };
+
+//   const fetchMyEmployees = async () => {
+//     setLoadingEmployees(true);
+//     setErrorEmployees('');
+//     try {
+//       const token = localStorage.getItem('userToken');
+//       const config = { headers: { 'Authorization': `Bearer ${token}` } };
+//       const response = await axios.get('http://localhost:5001/api/admin-client/employees', config);
+//       if (Array.isArray(response.data)) {
+//         setEmployees(response.data);
+//       } else {
+//         console.warn('API for employees did not return an array, defaulting to empty array.', response.data);
+//         setEmployees([]);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des employés:', err);
+//       setErrorEmployees('Erreur lors du chargement des employés.');
+//     } finally {
+//       setLoadingEmployees(false);
+//     }
+//   };
+
+//   const handleEmployeeCreated = (newEmployee) => {
+//     setEmployees(prevEmployees => [...prevEmployees, newEmployee]);
+//   };
+
+//   const fetchEmployeeTemperatureRecords = async () => {
+//     setLoadingTemperatures(true);
+//     setErrorTemperatures('');
+//     try {
+//       const token = localStorage.getItem('userToken');
+//       const config = { headers: { 'Authorization': `Bearer ${token}` } };
+//       const response = await axios.get('http://localhost:5001/api/admin-client/temperatures', config);
+//       if (Array.isArray(response.data)) {
+//         setTemperatureRecords(response.data);
+//       } else {
+//         console.warn('API for temperature records did not return an array, defaulting to empty array.', response.data);
+//         setTemperatureRecords([]);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des relevés de température des employés:', err);
+//       setErrorTemperatures('Erreur lors du chargement des relevés de température des employés.');
+//     } finally {
+//       setLoadingTemperatures(false);
+//     }
+//   };
+
+//   const fetchEquipments = async () => {
+//     setLoadingEquipments(true);
+//     setErrorEquipments('');
+//     try {
+//       const token = localStorage.getItem('userToken');
+//       const config = { headers: { 'Authorization': `Bearer ${token}` } };
+//       const response = await axios.get('http://localhost:5001/api/admin-client/equipments', config);
+//       if (response.data && Array.isArray(response.data.equipments)) {
+//         setEquipments(response.data.equipments);
+//       } else {
+//         console.warn('API for equipments did not return an array in the "equipments" property, defaulting to empty array.', response.data);
+//         setEquipments([]);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des équipements:', err);
+//       setErrorEquipments('Erreur lors du chargement des équipements.');
+//     } finally {
+//       setLoadingEquipments(false);
+//     }
+//   };
+
+//   const handleEquipmentSaved = (newOrUpdatedEquipment) => {
+//     if (newOrUpdatedEquipment.id) {
+//       setEquipments(prev => prev.map(eq => eq.id === newOrUpdatedEquipment.id ? newOrUpdatedEquipment : eq));
+//     } else {
+//       setEquipments(prev => [...prev, newOrUpdatedEquipment]);
+//     }
+//     fetchEquipments();
+//   };
+
+//   const handleDeleteEquipment = async (equipmentId) => {
+//     if (window.confirm("Êtes-vous sûr de vouloir supprimer cet équipement ?")) {
+//       try {
+//         const token = localStorage.getItem('userToken');
+//         const config = { headers: { 'Authorization': `Bearer ${token}` } };
+//         await axios.delete(`http://localhost:5001/api/admin-client/equipments/${equipmentId}`, config);
+//         setEquipments(prev => prev.filter(eq => eq.id !== equipmentId));
+//         alert('Équipement supprimé avec succès.');
+//       } catch (err) {
+//         console.error('Erreur lors de la suppression de l\'équipement:', err);
+//         alert(`Erreur lors de la suppression de l'équipement: ${err.response?.data?.message || err.message}`);
+//       }
+//     }
+//   };
+
+//   // --- FONCTION POUR RAFRAÎCHIR LA GALERIE PHOTO ---
+//   const handlePhotoActionSuccess = () => {
+//     setRefreshPhotos(prev => prev + 1); // Incrémente pour déclencher le useEffect dans PhotoGallery
+//   };
+//   // --- FIN FONCTION RAFRAÎCHIR ---
+
+//   const employeeFormInitialData = adminClientProfile ? {
+//     admin_client_id: adminClientProfile.id,
+//     isCreatingEmployeeByAdminClient: true
+//   } : {
+//     isCreatingEmployeeByAdminClient: true
+//   };
+
+//   // --- AJOUT DE NOUVEAUX BOUTONS POUR LES PHOTOS ---
+//   const sidebarButtons = [
+//     {
+//       label: 'Gérer mes Employés',
+//       title: 'Gestion des employés de votre établissement',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Liste de mes Employés</h3>
+//           {errorEmployees && <p className="error-message">{errorEmployees}</p>}
+//           {loadingEmployees ? <p>Chargement des employés...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr><th>ID</th><th>Email</th><th>Nom</th><th>Prénom</th><th>Entreprise</th><th>SIRET</th><th>Actions</th></tr>
+//               </thead>
+//               <tbody>
+//                 {employees.length === 0 ? (
+//                   <tr><td colSpan="7">Aucun employé trouvé.</td></tr>
+//                 ) : (
+//                   employees.map(emp => (
+//                     <tr key={emp.id}>
+//                       <td>{emp.id}</td>
+//                       <td>{emp.email}</td>
+//                       <td>{emp.nom_client}</td>
+//                       <td>{emp.prenom_client}</td>
+//                       <td>{emp.nom_entreprise}</td>
+//                       <td>{emp.siret}</td>
+//                       <td>
+//                         <button className="action-button edit-button">Modifier</button>
+//                         <button className="action-button delete-button">Supprimer</button>
+//                       </td>
+//                     </tr>
+//                   ))
+//                 )}
+//               </tbody>
+//             </table>
+//           )}
+//           <h4 className="mt-4">Ajouter un nouvel employé</h4>
+//           {adminClientProfile ? (
+//             <UserForm
+//               onUserCreated={handleEmployeeCreated}
+//               initialData={employeeFormInitialData}
+//               apiEndpointForCreation="http://localhost:5001/api/admin-client/employees"
+//               isCreatingEmployeeByAdminClient={true}
+//             />
+//           ) : (
+//             <p>Chargement des informations de l'Admin Client pour le formulaire...</p>
+//           )}
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Gérer les Équipements',
+//       title: 'Gestion de vos équipements (frigos, congélateurs, etc.)',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Liste de mes Équipements</h3>
+//           {errorEquipments && <p className="error-message">{errorEquipments}</p>}
+//           {loadingEquipments ? <p>Chargement des équipements...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr><th>ID</th><th>Nom</th><th>Type</th><th>Temp. Type</th><th>Min. Temp.</th><th>Max. Temp.</th><th>Actions</th></tr>
+//               </thead>
+//               <tbody>
+//                 {equipments.length === 0 ? (
+//                   <tr><td colSpan="7">Aucun équipement trouvé.</td></tr>
+//                 ) : (
+//                   equipments.map(eq => (
+//                     <tr key={eq.id}>
+//                       <td>{eq.id}</td>
+//                       <td>{eq.name}</td>
+//                       <td>{eq.type}</td>
+//                       <td>{eq.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+//                       <td>{eq.min_temp !== null ? `${eq.min_temp}°C` : 'N/A'}</td>
+//                       <td>{eq.max_temp !== null ? `${eq.max_temp}°C` : 'N/A'}</td>
+//                       <td>
+//                         <button className="action-button edit-button" onClick={() => {
+//                           alert(`Modifier l'équipement ${eq.name}`);
+//                         }}>Modifier</button>
+//                         <button className="action-button delete-button" onClick={() => handleDeleteEquipment(eq.id)}>Supprimer</button>
+//                       </td>
+//                     </tr>
+//                   ))
+//                 )}
+//               </tbody>
+//             </table>
+//           )}
+//           <h4 className="mt-4">Ajouter un nouvel équipement</h4>
+//           <EquipmentForm onEquipmentSaved={handleEquipmentSaved} />
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Relevés de mes Employés',
+//       title: 'Historique des relevés de température de votre établissement',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Relevés de Température des Employés</h3>
+//           {errorTemperatures && <p className="error-message">{errorTemperatures}</p>}
+//           {loadingTemperatures ? <p>Chargement des relevés...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr><th>ID</th><th>Type App.</th><th>Emplacement</th><th>Temp.</th><th>Type Temp.</th><th>Date</th><th>Employé ID</th><th>Entreprise Client</th><th>Actions</th></tr>
+//               </thead>
+//               <tbody>
+//                 {temperatureRecords.length === 0 ? (
+//                   <tr><td colSpan="9">Aucun relevé de température trouvé.</td></tr>
+//                 ) : (
+//                   temperatureRecords.map(record => (
+//                     <tr key={record.id}>
+//                       <td>{record.id}</td>
+//                       <td>{record.type}</td>
+//                       <td>{record.location}</td>
+//                       <td>{record.temperature}°C</td>
+//                       <td>{record.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+//                       <td>{new Date(record.timestamp).toLocaleString()}</td>
+//                       <td>{record.user_id}</td>
+//                       <td>{record.client_nom_entreprise}</td>
+//                       <td>
+//                         <button className="action-button edit-button">Modifier</button>
+//                         <button className="action-button delete-button">Supprimer</button>
+//                       </td>
+//                     </tr>
+//                   ))
+//                 )}
+//               </tbody>
+//             </table>
+//           )}
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Gérer les Photos', // <<< NOUVEAU BOUTON POUR LES PHOTOS
+//       title: 'Prendre et consulter les photos de produits',
+//       content: (
+//         <div className="admin-section">
+//           {adminClientSiret ? ( // S'assure que le SIRET est disponible avant d'afficher les composants
+//             <>
+//               <PhotoUploadForm siret={adminClientSiret} onPhotoUploadSuccess={handlePhotoActionSuccess} />
+//               <hr style={{ margin: '30px 0', borderColor: '#eee' }} />
+//               <PhotoGallery siret={adminClientSiret} currentUserRole={localStorage.getItem('userRole')} onPhotoDeleted={handlePhotoActionSuccess} key={refreshPhotos} />
+//             </>
+//           ) : (
+//             <p>Chargement des informations client pour les photos...</p>
+//           )}
+//         </div>
+//       )
+//     }
+//   ];
+//   // --- FIN AJOUT DE NOUVEAUX BOUTONS ---
+
+//   return (
+//     <DashboardLayout sidebarButtons={sidebarButtons}>
+//       <h2 className="welcome-message">Tableau de bord Admin Client</h2>
+//       <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements et leurs relevés de température.</p>
+
+//       {/* --- AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+//       {currentAlert && (
+//           <AlertPopup
+//               message={currentAlert.message}
+//               onDismiss={handleDismissAlert}
+//           />
+//       )}
+//       {/* --- FIN AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+//     </DashboardLayout>
+//   );
+// };
+
+// export default AdminClientDashboardPage;
 
 
 

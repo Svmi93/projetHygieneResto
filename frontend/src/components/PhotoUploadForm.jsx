@@ -2,7 +2,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import axiosInstance from '../api/axiosInstance'; // Importe l'instance Axios centralisée
-import './PhotoUploadForm.css';
+import './PhotoUploadForm.css'; // CORRIGÉ: Le fichier CSS devrait être PhotoUploadForm.css
 
 function PhotoUploadForm({ siret, onPhotoUploadSuccess }) {
   const webcamRef = useRef(null);

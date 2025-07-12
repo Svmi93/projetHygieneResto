@@ -8,12 +8,6 @@ function PhotoGallery({ siret, currentUserRole, onPhotoDeleted }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // L'URL de base est maintenant gérée par axiosInstance, donc les chemins sont relatifs
-  // const API_BASE_URL = 'http://localhost:5001/api/admin-client'; // Plus nécessaire
-
-  // La fonction getToken() n'est plus nécessaire car axiosInstance gère l'ajout du token
-  // const getToken = () => localStorage.getItem('userToken');
-
   /**
    * Récupère les photos pour un client spécifique via l'API.
    */
@@ -22,7 +16,8 @@ function PhotoGallery({ siret, currentUserRole, onPhotoDeleted }) {
     setError('');
     try {
       // Utilise axiosInstance.get() sans ajouter manuellement le header Authorization
-      const response = await axiosInstance.get(`/photos/client/${siret}`); // Chemin relatif
+      // Le chemin est relatif à la baseURL configurée dans axiosInstance (ex: /api)
+      const response = await axiosInstance.get(`/photos/client/${siret}`); 
       setPhotos(response.data);
     } catch (err) {
       console.error('Erreur lors de la récupération des photos:', err);
@@ -37,26 +32,28 @@ function PhotoGallery({ siret, currentUserRole, onPhotoDeleted }) {
     if (siret) {
       fetchPhotos();
     }
-  }, [siret, onPhotoDeleted]); // Recharge si le SIRET change ou si une photo est supprimée
+  }, [siret, onPhotoDeleted]); // 'onPhotoDeleted' est une dépendance pour recharger après une suppression
 
   /**
    * Gère la suppression d'une photo via l'API.
    * @param {number} photoId L'ID de la photo à supprimer.
    */
   const handleDeletePhoto = async (photoId) => {
+    // Utilisation d'une modale personnalisée serait préférable à window.confirm
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette photo ?')) {
       return;
     }
     setLoading(true); // Bloque le bouton pendant la suppression
     try {
       // Utilise axiosInstance.delete() sans ajouter manuellement le header Authorization
-      await axiosInstance.delete(`/photos/${photoId}`); // Chemin relatif
+      // Le chemin est relatif à la baseURL configurée dans axiosInstance
+      await axiosInstance.delete(`/photos/${photoId}`); 
       
       // Rafraîchit la liste des photos après suppression
       if (onPhotoDeleted) {
-        onPhotoDeleted(); // Notifie le parent ou déclenche un re-fetch
+        onPhotoDeleted(); // Notifie le composant parent (AdminClientDashboardPage) de rafraîchir
       } else {
-        fetchPhotos(); 
+        fetchPhotos(); // Fallback si le parent ne fournit pas onPhotoDeleted
       }
       
     } catch (err) {
@@ -79,14 +76,18 @@ function PhotoGallery({ siret, currentUserRole, onPhotoDeleted }) {
         {photos.map((photo) => (
           <div key={photo.id} className="photo-item">
             {/* L'URL de l'image doit pointer vers ton serveur Express qui sert le dossier 'uploads' */}
+            {/* Assurez-vous que votre backend Express a une route pour servir les fichiers statiques depuis 'uploads' */}
             <img src={`http://localhost:5001/uploads/${photo.file_path.split('/').pop()}`} 
                  alt={photo.product_name} 
                  style={{ width: '150px', height: '150px', objectFit: 'cover' }}
             />
             <p><strong>{photo.product_name}</strong> - {photo.quantity}</p>
             <p>Type: {photo.product_type}</p>
-            <p>Date: {new Date(photo.capture_date).toLocaleDateString()}</p>
-            {currentUserRole === 'admin' && ( // Seul l'admin peut supprimer
+            {/* La date de capture est affichée mais n'est PAS modifiable via cette interface */}
+            <p>Date: {new Date(photo.capture_date).toLocaleDateString()} à {new Date(photo.capture_date).toLocaleTimeString()}</p>
+            <p>Uploader par: {photo.uploaded_by_employee_name || 'N/A'}</p> {/* Assurez-vous que le backend renvoie ce nom */}
+            {/* Seul l'admin_client peut supprimer les photos de ses employés */}
+            {currentUserRole === 'admin_client' && ( 
               <button onClick={() => handleDeletePhoto(photo.id)} disabled={loading}>
                 Supprimer
               </button>
