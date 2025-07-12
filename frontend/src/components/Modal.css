@@ -51,10 +51,11 @@
     transition: color 0.2s ease;
     padding: 0;
     line-height: 1; /* Empêche un espace supplémentaire */
+    margin-bottom: 2%;
 }
 
 .modal-close-button:hover {
-    color: #333;
+    color: #e60c0c;
 }
 
 .modal-body {
