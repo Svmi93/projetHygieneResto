@@ -89,7 +89,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
       setDateTransformation('');
       setDateLimiteConsommation('');
       // The captureDate will automatically update to the current time via useEffect on next render
-
+      
       onAddSuccess && onAddSuccess(response.data); // Notify parent component of success
     } catch (err) {
       console.error('Erreur lors de l\'ajout de l\'enregistrement de traçabilité:', err);
@@ -150,6 +150,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
               placeholder="Ex: Lot de tomates cerises"
               required
               disabled={isSubmitting}
+              autocomplete="off" // No standard autocomplete for generic designation
             />
           </div>
 
@@ -165,6 +166,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
                 min="0" // Quantity cannot be negative
                 step="any" // Allows decimal values
                 disabled={isSubmitting}
+                autocomplete="off" // No standard autocomplete for quantity value
               />
               <select
                 id="quantityUnit"
@@ -172,6 +174,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
                 onChange={(e) => setQuantityUnit(e.target.value)}
                 required
                 disabled={isSubmitting}
+                autocomplete="off" // No standard autocomplete for unit
               >
                 <option value="gramme">Gramme(s)</option>
                 <option value="kilo">Kilo(s)</option>
@@ -191,6 +194,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
               readOnly // Read-only as it's automatically generated
               disabled // Visually indicate it's not editable
               className="read-only-input"
+              autocomplete="off" // Explicitly turn off autocomplete for auto-generated field
             />
           </div>
 
@@ -202,6 +206,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
               value={dateTransformation}
               onChange={(e) => setDateTransformation(e.target.value)}
               disabled={isSubmitting}
+              autocomplete="off" // No specific autocomplete for transformation date
             />
           </div>
 
@@ -214,6 +219,7 @@ function AddTraceabilityForm({ siret, employeeId, onAddSuccess }) {
               onChange={(e) => setDateLimiteConsommation(e.target.value)}
               required
               disabled={isSubmitting}
+              autocomplete="off" // No specific autocomplete for best before date
             />
           </div>
         </div>
