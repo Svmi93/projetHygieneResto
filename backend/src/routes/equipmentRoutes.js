@@ -1,35 +1,25 @@
-// backend/src/routes/employerRoutes.js
+// backend/src/routes/equipmentRoutes.js
 const express = require('express');
 const router = express.Router();
-const temperatureController = require('../controllers/temperatureController');
-const equipmentController = require('../controllers/equipmentController'); // Keep this if needed
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const equipmentController = require('../controllers/equipmentController');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth'); // CORRIGÉ : Le chemin doit pointer vers 'auth.js'
 
-// All routes here will use authenticateToken and authorizeRoles('employer') automatically
-// because of app.use('/api/employer', employerRoutes) in server.js,
-// combined with the router.use() middleware here.
-router.use(authenticateToken, authorizeRoles('employer'));
+// --- Routes pour Admin Client (gestion de ses propres équipements) ---
+// Ces routes nécessitent le rôle 'admin_client'
+router.get('/admin-client/equipments', authenticateToken, authorizeRoles('admin_client'), equipmentController.getEquipmentsForAdminClient);
+router.post('/admin-client/equipments', authenticateToken, authorizeRoles('admin_client'), equipmentController.createEquipment);
+router.put('/admin-client/equipments/:id', authenticateToken, authorizeRoles('admin_client'), equipmentController.updateEquipment);
+router.delete('/admin-client/equipments/:id', authenticateToken, authorizeRoles('admin_client'), equipmentController.deleteEquipment);
 
-// --- Employer-specific Temperature Records ---
-// POST /api/employer/temperatures - Employee can create their own temperature records
-router.post('/temperatures', temperatureController.createTemperatureRecord);
-
-// GET /api/employer/temperatures - Employee can view their own temperature records
-// This is the route the frontend was trying to hit!
-router.get('/temperatures', temperatureController.getTemperatureRecordsByClient); // Assuming this controller gets client's specific temperatures
-
-// PUT /api/employer/temperatures/:id - Employee can update their own temperature records
-router.put('/temperatures/:id', temperatureController.updateTemperatureRecordByClient);
-
-// --- Employer-specific Equipment/Locations (if this route exists) ---
-// Assuming /api/employer/my-locations maps here
-router.get('/my-locations', equipmentController.getEmployeeLocations);
-
-
-// IMPORTANT: La suppression des relevés n'est PAS autorisée pour les employés.
-// Donc, il n'y a PAS de route DELETE ici.
+// --- Route pour les localisations d'employés ---
+// Cette route est destinée aux utilisateurs avec le rôle 'employer' pour récupérer leurs localisations/équipements.
+// Elle sera accessible via /api/employer/my-locations car le routeur est monté sous /api.
+router.get('/employer/my-locations', authenticateToken, authorizeRoles('employer'), equipmentController.getEmployeeLocations);
 
 module.exports = router;
+
+
+
 
 
 

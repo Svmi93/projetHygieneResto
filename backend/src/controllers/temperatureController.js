@@ -1,388 +1,331 @@
 // backend/src/controllers/temperatureController.js
 const { getConnection } = require('../config/db');
 
-// --- Common function to get temperature records by user ID (for 'employer' role) ---
+// --- Méthodes pour Employé ---
+
+// Renommée de getMyTemperatureRecords pour correspondre à employerRoutes.js
 exports.getTemperatureRecordsByClient = async (req, res) => {
-    const userId = req.user.id; // L'ID de l'employé connecté
+    const userId = req.user.id;
+    const siretEtablissement = req.user.client_id; // Le SIRET de l'admin_client auquel l'employé est rattaché
+
     try {
         const pool = await getConnection();
-        // MODIFICATION ICI : Récupérer le admin_client_siret de l'employé connecté
-        const [userData] = await pool.execute('SELECT admin_client_siret FROM users WHERE id = ? AND role = "employer"', [userId]);
-        if (userData.length === 0 || !userData[0].admin_client_siret) { // Vérifie admin_client_siret
-            return res.status(403).json({ message: 'Accès refusé. Employé non trouvé ou rattaché à aucun établissement (admin_client_siret non défini).' });
-        }
-        const employerSiret = userData[0].admin_client_siret; // Utilise admin_client_siret
-
+        // Récupérer les relevés de température spécifiques à cet employé ou généraux pour son établissement
         const [records] = await pool.execute(
-            'SELECT id, type, location, temperature, timestamp, notes, temperature_type FROM temperature_records WHERE user_id = ? AND siret_etablissement = ? ORDER BY timestamp DESC',
-            [userId, employerSiret]
+            'SELECT * FROM temperature_records WHERE (user_id = ? OR siret_etablissement = ?) ORDER BY timestamp DESC',
+            [userId, siretEtablissement]
         );
-        res.status(200).json(records);
+        res.json(records);
     } catch (error) {
-        console.error('Erreur lors de la récupération des relevés de température pour l\'employé:', error);
+        console.error('Erreur lors de la récupération des relevés de température de l\'employé:', error);
         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
     }
 };
 
-// --- Common function to create temperature record (for 'employer' role) ---
+// Renommée de addMyTemperatureRecord pour correspondre à employerRoutes.js
 exports.createTemperatureRecord = async (req, res) => {
-    const userId = req.user.id; // L'ID de l'employé connecté
-    const { type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+    const { type, location, temperature, temperature_type, notes } = req.body;
+    const userId = req.user.id;
+    const siretEtablissement = req.user.client_id; // Le SIRET de l'admin_client auquel l'employé est rattaché
 
-    if (!type || !location || temperature === undefined || !timestamp || !temperature_type) {
-        return res.status(400).json({ message: 'Type, emplacement, température, date/heure et type de température sont requis.' });
-    }
-    if (!['positive', 'negative'].includes(temperature_type)) {
-        return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+    if (!type || !location || temperature === undefined || temperature === null || !siretEtablissement) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires (type, localisation, température, SIRET) sont requis.' });
     }
 
     try {
         const pool = await getConnection();
-        // MODIFICATION ICI : Récupérer le admin_client_siret de l'employé connecté
-        const [userData] = await pool.execute('SELECT admin_client_siret FROM users WHERE id = ? AND role = "employer"', [userId]);
-        if (userData.length === 0 || !userData[0].admin_client_siret) { // Vérifie admin_client_siret
-            return res.status(403).json({ message: 'Accès refusé. Employé non trouvé ou rattaché à aucun établissement (admin_client_siret non défini).' });
-        }
-        const siretEtablissement = userData[0].admin_client_siret; // Utilise admin_client_siret
-
         const [result] = await pool.execute(
-            'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [userId, siretEtablissement, type, location, temperature, timestamp, temperature_type, notes]
+            'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [userId, siretEtablissement, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null]
         );
-
-        const newRecord = { id: result.insertId, user_id: userId, siret_etablissement: siretEtablissement, type, location, temperature, timestamp, temperature_type, notes };
-        res.status(201).json(newRecord);
+        res.status(201).json({ message: 'Relevé de température ajouté avec succès.', recordId: result.insertId });
     } catch (error) {
-        console.error('Erreur lors de l\'ajout du relevé de température:', error);
+        console.error('Erreur lors de l\'ajout du relevé de température de l\'employé:', error);
         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
     }
 };
 
-// --- Common function to update temperature record (for 'employer' role) ---
+// NOUVELLE FONCTION pour que l'employé puisse mettre à jour SES PROPRES relevés
 exports.updateTemperatureRecordByClient = async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params; // ID du relevé de température à mettre à jour
+    const { type, location, temperature, temperature_type, notes } = req.body;
     const userId = req.user.id; // L'ID de l'employé connecté
-    const { type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+    const siretEtablissement = req.user.client_id; // Le SIRET de l'admin_client auquel l'employé est rattaché
 
-    if (!type || !location || temperature === undefined || !timestamp || !temperature_type) {
-        return res.status(400).json({ message: 'Type, emplacement, température, date/heure et type de température sont requis pour la mise à jour.' });
-    }
-    if (!['positive', 'negative'].includes(temperature_type)) {
-        return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+    if (!type || !location || temperature === undefined || temperature === null) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires (type, localisation, température) sont requis pour la mise à jour.' });
     }
 
     try {
         const pool = await getConnection();
-        // Vérifier que le relevé appartient bien à l'employé connecté ET à son établissement
-        // MODIFICATION ICI : Récupérer le admin_client_siret de l'employé connecté pour la vérification
-        const [userData] = await pool.execute('SELECT admin_client_siret FROM users WHERE id = ? AND role = "employer"', [userId]);
-        if (userData.length === 0 || !userData[0].admin_client_siret) {
-            return res.status(403).json({ message: 'Accès refusé. Employé non trouvé ou rattaché à aucun établissement.' });
-        }
-        const employerSiret = userData[0].admin_client_siret;
 
-
+        // Vérifier que le relevé existe et appartient bien à CET EMPLOYE et à SON ETABLISSEMENT
         const [record] = await pool.execute(
-            'SELECT user_id FROM temperature_records WHERE id = ? AND user_id = ? AND siret_etablissement = ?', // AJOUT DE siret_etablissement dans la condition
-            [id, userId, employerSiret]
+            'SELECT id FROM temperature_records WHERE id = ? AND user_id = ? AND siret_etablissement = ?',
+            [id, userId, siretEtablissement]
         );
         if (record.length === 0) {
-            return res.status(403).json({ message: 'Accès refusé. Ce relevé n\'appartient pas à cet employé, à son établissement, ou n\'existe pas.' });
+            return res.status(404).json({ message: 'Relevé de température non trouvé ou non autorisé.' });
         }
 
         const [result] = await pool.execute(
-            'UPDATE temperature_records SET type = ?, location = ?, temperature = ?, timestamp = ?, temperature_type = ?, notes = ? WHERE id = ?',
-            [type, location, temperature, timestamp, temperature_type, notes, id]
+            'UPDATE temperature_records SET type = ?, location = ?, temperature = ?, temperature_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [type, location, parseFloat(temperature), temperature_type || 'positive', notes || null, id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Relevé de température non trouvé ou aucune modification effectuée.' });
+            return res.status(404).json({ message: 'Relevé non trouvé ou aucune modification effectuée.' });
         }
-
-        const updatedRecord = { id: parseInt(id), user_id: userId, type, location, temperature, timestamp, temperature_type, notes };
-        res.status(200).json(updatedRecord);
+        res.json({ message: 'Relevé de température mis à jour avec succès.' });
     } catch (error) {
-        console.error('Erreur lors de la mise à jour du relevé de température:', error);
+        console.error('Erreur lors de la mise à jour du relevé de température par l\'employé:', error);
         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
     }
 };
 
-// --- Admin Client specific functions (can manage temperature records of their assigned employees) ---
-// Ces fonctions semblent déjà correctes, car elles utilisent 'siret' pour l'admin_client
-// et 'admin_client_siret' pour vérifier la liaison avec les employés.
-exports.getTemperatureRecordsForAdminClient = async (req, res) => {
-    const adminClientId = req.user.id;
+// NOUVELLE FONCTION pour que l'employé puisse supprimer SES PROPRES relevés (si autorisé)
+// Actuellement non utilisée dans employerRoutes.js selon vos commentaires précédents, mais incluse pour complétude.
+exports.deleteTemperatureRecordByClient = async (req, res) => {
+    const { id } = req.params; // ID du relevé de température à supprimer
+    const userId = req.user.id; // L'ID de l'employé connecté
+    const siretEtablissement = req.user.client_id; // Le SIRET de l'admin_client auquel l'employé est rattaché
+
     try {
         const pool = await getConnection();
-        // Récupérer le SIRET de l'admin_client connecté
-        const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
-        if (adminClientData.length === 0 || !adminClientData[0].siret) {
-            return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
-        }
-        const adminClientSiret = adminClientData[0].siret;
 
+        // Vérifier que le relevé existe et appartient bien à CET EMPLOYE et à SON ETABLISSEMENT
+        const [record] = await pool.execute(
+            'SELECT id FROM temperature_records WHERE id = ? AND user_id = ? AND siret_etablissement = ?',
+            [id, userId, siretEtablissement]
+        );
+        if (record.length === 0) {
+            return res.status(404).json({ message: 'Relevé de température non trouvé ou non autorisé.' });
+        }
+
+        const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Relevé non trouvé.' });
+        }
+        res.status(204).send();
+    } catch (error) {
+        console.error('Erreur lors de la suppression du relevé de température par l\'employé:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
+    }
+};
+
+
+// --- Méthodes pour Admin Client ---
+
+exports.getTemperatureRecordsForAdminClient = async (req, res) => {
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+    if (!adminClientSiret) {
+        return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+    }
+
+    try {
+        const pool = await getConnection();
+        // Récupérer tous les relevés de température pour les employés rattachés à ce SIRET admin_client
+        // Jointure avec la table users pour obtenir le nom et prénom de l'employé
         const [records] = await pool.execute(
-            'SELECT tr.id, tr.type, tr.location, tr.temperature, tr.timestamp, tr.notes, tr.created_at, tr.user_id, tr.temperature_type, ' +
-            'u.nom_entreprise AS client_nom_entreprise, u.nom_client AS client_nom_client ' +
-            'FROM temperature_records tr ' +
-            'JOIN users u ON tr.user_id = u.id ' +
-            'WHERE tr.siret_etablissement = ? AND u.role = "employer" ' + // Filtrer par siret_etablissement et rôle 'employer'
-            'ORDER BY tr.timestamp DESC',
+            `SELECT tr.*, u.nom_client, u.prenom_client, u.nom_entreprise AS client_nom_entreprise
+             FROM temperature_records tr
+             JOIN users u ON tr.user_id = u.id
+             WHERE tr.siret_etablissement = ? ORDER BY tr.timestamp DESC`,
             [adminClientSiret]
         );
-        res.status(200).json(records);
+        res.json(records);
     } catch (error) {
-        console.error('Erreur lors de la récupération des relevés de température pour l\'admin client:', error);
+        console.error('Erreur lors de la récupération des relevés de température pour Admin Client:', error);
         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
     }
 };
 
 exports.addTemperatureRecordByAdminClient = async (req, res) => {
-    const adminClientId = req.user.id;
-    const { user_id, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+    const { user_id, type, location, temperature, temperature_type, notes } = req.body;
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
 
-    if (!user_id || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
-        return res.status(400).json({ message: 'ID utilisateur, type, emplacement, température, date/heure et type de température sont requis.' });
-    }
-    if (!['positive', 'negative'].includes(temperature_type)) {
-        return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+    if (!user_id || !type || !location || temperature === undefined || temperature === null || !adminClientSiret) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires (ID utilisateur, type, localisation, température, SIRET) sont requis.' });
     }
 
     try {
         const pool = await getConnection();
 
-        // Récupérer le SIRET de l'admin_client connecté
-        const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
-        if (adminClientData.length === 0 || !adminClientData[0].siret) {
-            return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+        // Vérifier que l'user_id appartient bien à un employé rattaché à cet adminClientSiret
+        const [employee] = await pool.execute('SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', [user_id, adminClientSiret]);
+        if (employee.length === 0) {
+            return res.status(403).json({ message: 'Employé non trouvé ou non rattaché à votre établissement.' });
         }
-        const adminClientSiret = adminClientData[0].siret;
-
-        // Vérifier que l'user_id fourni est bien un employé rattaché à cet admin_client via le SIRET
-        // ICI : S'assurer que le siret_etablissement de l'employé correspond au admin_client_siret
-        const [employerData] = await pool.execute(
-            'SELECT id, admin_client_siret FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', // MODIFICATION ICI
-            [user_id, adminClientSiret]
-        );
-        if (employerData.length === 0) {
-            return res.status(403).json({ message: 'Accès refusé. L\'utilisateur spécifié n\'est pas un employé de votre établissement.' });
-        }
-        // Le SIRET de l'employé (qui doit être le même que l'admin client's admin_client_siret)
-        const employerSiret = employerData[0].admin_client_siret; // MODIFICATION ICI
 
         const [result] = await pool.execute(
-            'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [user_id, employerSiret, type, location, temperature, timestamp, temperature_type, notes]
+            'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [user_id, adminClientSiret, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null]
         );
-
-        const newRecord = { id: result.insertId, user_id, siret_etablissement: employerSiret, type, location, temperature, timestamp, temperature_type, notes };
-        res.status(201).json(newRecord);
+        res.status(201).json({ message: 'Relevé de température ajouté avec succès.', recordId: result.insertId });
     } catch (error) {
-        console.error('Erreur lors de l\'ajout du relevé de température par l\'admin client:', error);
+        console.error('Erreur lors de l\'ajout du relevé de température par Admin Client:', error);
         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
     }
 };
 
 exports.updateTemperatureRecordForAdminClient = async (req, res) => {
-    const { id } = req.params;
-    const adminClientId = req.user.id;
-    const { user_id, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+    const { id } = req.params; // ID du relevé de température
+    const { type, location, temperature, temperature_type, notes } = req.body;
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
 
-    if (!user_id || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
-        return res.status(400).json({ message: 'ID utilisateur, type, emplacement, température, date/heure et type de température sont requis pour la mise à jour.' });
+    if (!adminClientSiret) {
+        return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
     }
-    if (!['positive', 'negative'].includes(temperature_type)) {
-        return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+    if (!type || !location || temperature === undefined || temperature === null) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires (type, localisation, température) sont requis pour la mise à jour.' });
     }
 
     try {
         const pool = await getConnection();
-        // Récupérer le SIRET de l'admin_client connecté
-        const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
-        if (adminClientData.length === 0 || !adminClientData[0].siret) {
-            return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
-        }
-        const adminClientSiret = adminClientData[0].siret;
 
-        // Vérifier que le relevé existe et appartient à un employé de cet admin_client
-        const [recordToUpdate] = await pool.execute(
-            'SELECT tr.id FROM temperature_records tr JOIN users u ON tr.user_id = u.id ' +
-            'WHERE tr.id = ? AND tr.user_id = ? AND u.role = "employer" AND u.admin_client_siret = ?',
-            [id, user_id, adminClientSiret]
-        );
-        if (recordToUpdate.length === 0) {
-            return res.status(403).json({ message: 'Accès refusé. Ce relevé n\'appartient pas à un employé de votre établissement ou n\'existe pas.' });
+        // Vérifier que le relevé existe et appartient bien à l'établissement de cet admin_client
+        const [record] = await pool.execute('SELECT id FROM temperature_records WHERE id = ? AND siret_etablissement = ?', [id, adminClientSiret]);
+        if (record.length === 0) {
+            return res.status(404).json({ message: 'Relevé de température non trouvé ou non rattaché à votre établissement.' });
         }
 
         const [result] = await pool.execute(
-            'UPDATE temperature_records SET user_id = ?, type = ?, location = ?, temperature = ?, timestamp = ?, temperature_type = ?, notes = ? WHERE id = ?',
-            [user_id, type, location, temperature, timestamp, temperature_type, notes, id]
+            'UPDATE temperature_records SET type = ?, location = ?, temperature = ?, temperature_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [type, location, parseFloat(temperature), temperature_type || 'positive', notes || null, id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Relevé de température non trouvé ou aucune modification effectuée.' });
+            return res.status(404).json({ message: 'Relevé non trouvé ou aucune modification effectuée.' });
         }
-
-        const updatedRecord = { id: parseInt(id), user_id, type, location, temperature, timestamp, temperature_type, notes };
-        res.status(200).json(updatedRecord);
+        res.json({ message: 'Relevé de température mis à jour avec succès.' });
     } catch (error) {
-        console.error('Erreur lors de la mise à jour du relevé de température par l\'admin client:', error);
+        console.error('Erreur lors de la mise à jour du relevé de température par Admin Client:', error);
         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
     }
 };
 
 exports.deleteTemperatureRecordForAdminClient = async (req, res) => {
-    const { id } = req.params;
-    const adminClientId = req.user.id;
+    const { id } = req.params; // ID du relevé de température
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+    if (!adminClientSiret) {
+        return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+    }
 
     try {
         const pool = await getConnection();
-        // Récupérer le SIRET de l'admin_client connecté
-        const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
-        if (adminClientData.length === 0 || !adminClientData[0].siret) {
-            return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
-        }
-        const adminClientSiret = adminClientData[0].siret;
 
-        // Vérifier que le relevé existe et appartient à un employé de cet admin_client
-        const [recordToDelete] = await pool.execute(
-            'SELECT tr.id FROM temperature_records tr JOIN users u ON tr.user_id = u.id ' +
-            'WHERE tr.id = ? AND u.role = "employer" AND u.admin_client_siret = ?',
-            [id, adminClientSiret]
-        );
-        if (recordToDelete.length === 0) {
-            return res.status(403).json({ message: 'Accès refusé. Ce relevé n\'appartient pas à un employé de votre établissement ou n\'existe pas.' });
+        // Vérifier que le relevé existe et appartient bien à l'établissement de cet admin_client
+        const [record] = await pool.execute('SELECT id FROM temperature_records WHERE id = ? AND siret_etablissement = ?', [id, adminClientSiret]);
+        if (record.length === 0) {
+            return res.status(404).json({ message: 'Relevé de température non trouvé ou non rattaché à votre établissement.' });
         }
 
         const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Relevé de température non trouvé.' });
+            return res.status(404).json({ message: 'Relevé non trouvé.' });
         }
         res.status(204).send();
     } catch (error) {
-        console.error('Erreur lors de la suppression du relevé de température par l\'admin client:', error);
+        console.error('Erreur lors de la suppression du relevé de température par Admin Client:', error);
         res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
     }
 };
 
-// --- Super Admin specific functions (can manage all temperature records) ---
+// --- Méthodes pour Super Admin ---
+
 exports.getAllTemperatureRecordsAdmin = async (req, res) => {
     try {
         const pool = await getConnection();
+        // Jointure avec la table users pour obtenir les détails de l'utilisateur et de l'entreprise
         const [records] = await pool.execute(
-            'SELECT tr.id, tr.type, tr.location, tr.temperature, tr.timestamp, tr.notes, tr.created_at, tr.user_id, tr.siret_etablissement, tr.temperature_type, ' +
-            'u.nom_entreprise AS client_nom_entreprise, u.nom_client AS client_nom_client, u.prenom_client AS client_prenom_client ' +
-            'FROM temperature_records tr ' +
-            'JOIN users u ON tr.user_id = u.id ' +
-            'ORDER BY tr.timestamp DESC'
+            `SELECT tr.*, u.nom_client, u.prenom_client, u.nom_entreprise AS client_nom_entreprise
+             FROM temperature_records tr
+             JOIN users u ON tr.user_id = u.id
+             ORDER BY tr.timestamp DESC`
         );
-        res.status(200).json(records);
+        res.json(records);
     } catch (error) {
-        console.error('Error fetching all temperature records for super admin:', error);
-        res.status(500).json({ message: 'Internal server error while fetching temperature records.' });
+        console.error('Erreur lors de la récupération de tous les relevés de température (Super Admin):', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
     }
 };
 
 exports.addTemperatureRecordAdmin = async (req, res) => {
-    const { user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+    const { user_id, siret_etablissement, type, location, temperature, temperature_type, notes } = req.body;
 
-    if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
-        return res.status(400).json({ message: 'User ID, SIRET établissement, type, emplacement, température, date/heure et type de température sont requis.' });
-    }
-    if (!['positive', 'negative'].includes(temperature_type)) {
-        return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+    if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || temperature === null) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires (ID utilisateur, SIRET, type, localisation, température) sont requis.' });
     }
 
     try {
         const pool = await getConnection();
-        // Optional: Valider que user_id et siret_etablissement sont cohérents
-        // Il est préférable de vérifier si l'user_id existe et son rôle, et récupérer le siret_etablissement directement de l'utilisateur
-        // pour éviter des incohérences si l'admin tente d'assigner un siret incorrect.
-        // Pour un super_admin, on pourrait laisser tel quel si on assume qu'il connaît la structure.
-        const [userCheck] = await pool.execute('SELECT siret, admin_client_siret, role FROM users WHERE id = ?', [user_id]);
-        if (userCheck.length === 0) {
-            return res.status(400).json({ message: 'User ID fourni non trouvé.' });
+        // Vérifier que l'user_id existe et que le siret_etablissement existe et correspond à un admin_client
+        const [userExists] = await pool.execute('SELECT id FROM users WHERE id = ?', [user_id]);
+        if (userExists.length === 0) {
+            return res.status(400).json({ message: 'L\'ID utilisateur spécifié n\'existe pas.' });
         }
-        let actualSiretEtablissement;
-        if (userCheck[0].role === 'admin_client') {
-            actualSiretEtablissement = userCheck[0].siret;
-        } else if (userCheck[0].role === 'employer') {
-            actualSiretEtablissement = userCheck[0].admin_client_siret;
-        } else {
-            // Gérer d'autres rôles si nécessaire, ou rejeter
-            return res.status(400).json({ message: 'Le rôle de l\'utilisateur fourni ne permet pas la création de relevés de température.' });
-        }
-        if (actualSiretEtablissement !== siret_etablissement) {
-            console.warn(`Incohérence détectée: le SIRET fourni (${siret_etablissement}) ne correspond pas au SIRET de l'établissement de l'utilisateur (${actualSiretEtablissement}). Le SIRET réel de l'utilisateur sera utilisé.`);
-            siret_etablissement = actualSiretEtablissement; // Prioriser le SIRET de l'utilisateur dans la DB
+        const [siretExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [siret_etablissement]);
+        if (siretExists.length === 0) {
+            return res.status(400).json({ message: 'Le SIRET d\'établissement spécifié n\'existe pas ou n\'est pas un admin_client.' });
         }
 
         const [result] = await pool.execute(
-            'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes]
+            'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [user_id, siret_etablissement, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null]
         );
-
-        const newRecord = { id: result.insertId, user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes };
-        res.status(201).json(newRecord);
+        res.status(201).json({ message: 'Relevé de température ajouté avec succès.', recordId: result.insertId });
     } catch (error) {
-        console.error('Erreur lors de l\'ajout du relevé de température par le super admin:', error);
+        console.error('Erreur lors de l\'ajout du relevé de température (Super Admin):', error);
         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
     }
 };
 
 exports.updateTemperatureRecordAdmin = async (req, res) => {
     const { id } = req.params;
-    const { user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+    const { user_id, siret_etablissement, type, location, temperature, temperature_type, notes } = req.body;
 
-    if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
-        return res.status(400).json({ message: 'User ID, SIRET établissement, type, emplacement, température, date/heure et type de température sont requis pour la mise à jour.' });
-    }
-    if (!['positive', 'negative'].includes(temperature_type)) {
-        return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+    if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || temperature === null) {
+        return res.status(400).json({ message: 'Tous les champs obligatoires (ID utilisateur, SIRET, type, localisation, température) sont requis pour la mise à jour.' });
     }
 
     try {
         const pool = await getConnection();
-        // Optional: Valider que user_id et siret_etablissement sont cohérents
-        const [userCheck] = await pool.execute('SELECT siret, admin_client_siret, role FROM users WHERE id = ?', [user_id]);
-        if (userCheck.length === 0) {
-            return res.status(400).json({ message: 'User ID fourni non trouvé.' });
+
+        // Vérifier que le relevé existe
+        const [recordExists] = await pool.execute('SELECT id FROM temperature_records WHERE id = ?', [id]);
+        if (recordExists.length === 0) {
+            return res.status(404).json({ message: 'Relevé de température non trouvé.' });
         }
-        let actualSiretEtablissement;
-        if (userCheck[0].role === 'admin_client') {
-            actualSiretEtablissement = userCheck[0].siret;
-        } else if (userCheck[0].role === 'employer') {
-            actualSiretEtablissement = userCheck[0].admin_client_siret;
-        } else {
-            // Gérer d'autres rôles si nécessaire, ou rejeter
-            return res.status(400).json({ message: 'Le rôle de l\'utilisateur fourni ne permet pas la mise à jour de relevés de température.' });
+
+        // Vérifier que l'user_id existe et que le siret_etablissement existe et correspond à un admin_client
+        const [userExists] = await pool.execute('SELECT id FROM users WHERE id = ?', [user_id]);
+        if (userExists.length === 0) {
+            return res.status(400).json({ message: 'L\'ID utilisateur spécifié n\'existe pas.' });
         }
-        if (actualSiretEtablissement !== siret_etablissement) {
-            console.warn(`Incohérence détectée: le SIRET fourni (${siret_etablissement}) ne correspond pas au SIRET de l'établissement de l'utilisateur (${actualSiretEtablissement}).`);
-            // Décidez si vous voulez permettre la mise à jour avec le SIRET fourni ou forcer le SIRET réel de l'utilisateur
-            // Pour l'instant, on laisse le SIRET fourni mais on loggue l'avertissement.
+        const [siretExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [siret_etablissement]);
+        if (siretExists.length === 0) {
+            return res.status(400).json({ message: 'Le SIRET d\'établissement spécifié n\'existe pas ou n\'est pas un admin_client.' });
         }
 
         const [result] = await pool.execute(
-            'UPDATE temperature_records SET user_id = ?, siret_etablissement = ?, type = ?, location = ?, temperature = ?, timestamp = ?, temperature_type = ?, notes = ? WHERE id = ?',
-            [user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes, id]
+            'UPDATE temperature_records SET user_id = ?, siret_etablissement = ?, type = ?, location = ?, temperature = ?, temperature_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [user_id, siret_etablissement, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null, id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Relevé de température non trouvé ou aucune modification effectuée.' });
+            return res.status(404).json({ message: 'Relevé non trouvé ou aucune modification effectuée.' });
         }
-
-        const updatedRecord = { id: parseInt(id), user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes };
-        res.status(200).json(updatedRecord);
+        res.json({ message: 'Relevé de température mis à jour avec succès.' });
     } catch (error) {
-        console.error('Erreur lors de la mise à jour du relevé de température par le super admin:', error);
+        console.error('Erreur lors de la mise à jour du relevé de température (Super Admin):', error);
         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
     }
 };
 
 exports.deleteTemperatureRecordAdmin = async (req, res) => {
     const { id } = req.params;
-
     try {
         const pool = await getConnection();
         const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
@@ -391,10 +334,694 @@ exports.deleteTemperatureRecordAdmin = async (req, res) => {
         }
         res.status(204).send();
     } catch (error) {
-        console.error('Erreur lors de la suppression du relevé de température par le super admin:', error);
+        console.error('Erreur lors de la suppression du relevé de température (Super Admin):', error);
         res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
     }
 };
+
+
+
+
+
+
+
+// // backend/src/controllers/temperatureController.js
+// const { getConnection } = require('../config/db');
+
+// // --- Méthodes pour Employé ---
+
+// exports.getMyTemperatureRecords = async (req, res) => {
+//     const userId = req.user.id;
+//     const siretEtablissement = req.user.client_id; // Le SIRET de l'admin_client auquel l'employé est rattaché
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer les relevés de température spécifiques à cet employé ou généraux pour son établissement
+//         const [records] = await pool.execute(
+//             'SELECT * FROM temperature_records WHERE (user_id = ? OR siret_etablissement = ?) ORDER BY timestamp DESC',
+//             [userId, siretEtablissement]
+//         );
+//         res.json(records);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération des relevés de température de l\'employé:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
+//     }
+// };
+
+// exports.addMyTemperatureRecord = async (req, res) => {
+//     const { type, location, temperature, temperature_type, notes } = req.body;
+//     const userId = req.user.id;
+//     const siretEtablissement = req.user.client_id; // Le SIRET de l'admin_client auquel l'employé est rattaché
+
+//     if (!type || !location || temperature === undefined || temperature === null || !siretEtablissement) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires (type, localisation, température, SIRET) sont requis.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         const [result] = await pool.execute(
+//             'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+//             [userId, siretEtablissement, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null]
+//         );
+//         res.status(201).json({ message: 'Relevé de température ajouté avec succès.', recordId: result.insertId });
+//     } catch (error) {
+//         console.error('Erreur lors de l\'ajout du relevé de température de l\'employé:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
+//     }
+// };
+
+// // --- Méthodes pour Admin Client ---
+
+// exports.getTemperatureRecordsForAdminClient = async (req, res) => {
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer tous les relevés de température pour les employés rattachés à ce SIRET admin_client
+//         // Jointure avec la table users pour obtenir le nom et prénom de l'employé
+//         const [records] = await pool.execute(
+//             `SELECT tr.*, u.nom_client, u.prenom_client, u.nom_entreprise AS client_nom_entreprise
+//              FROM temperature_records tr
+//              JOIN users u ON tr.user_id = u.id
+//              WHERE tr.siret_etablissement = ? ORDER BY tr.timestamp DESC`,
+//             [adminClientSiret]
+//         );
+//         res.json(records);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération des relevés de température pour Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
+//     }
+// };
+
+// exports.addTemperatureRecordByAdminClient = async (req, res) => {
+//     const { user_id, type, location, temperature, temperature_type, notes } = req.body;
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!user_id || !type || !location || temperature === undefined || temperature === null || !adminClientSiret) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires (ID utilisateur, type, localisation, température, SIRET) sont requis.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Vérifier que l'user_id appartient bien à un employé rattaché à cet adminClientSiret
+//         const [employee] = await pool.execute('SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', [user_id, adminClientSiret]);
+//         if (employee.length === 0) {
+//             return res.status(403).json({ message: 'Employé non trouvé ou non rattaché à votre établissement.' });
+//         }
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+//             [user_id, adminClientSiret, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null]
+//         );
+//         res.status(201).json({ message: 'Relevé de température ajouté avec succès.', recordId: result.insertId });
+//     } catch (error) {
+//         console.error('Erreur lors de l\'ajout du relevé de température par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
+//     }
+// };
+
+// exports.updateTemperatureRecordForAdminClient = async (req, res) => {
+//     const { id } = req.params; // ID du relevé de température
+//     const { type, location, temperature, temperature_type, notes } = req.body;
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+//     }
+//     if (!type || !location || temperature === undefined || temperature === null) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires (type, localisation, température) sont requis pour la mise à jour.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Vérifier que le relevé existe et appartient bien à l'établissement de cet admin_client
+//         const [record] = await pool.execute('SELECT id FROM temperature_records WHERE id = ? AND siret_etablissement = ?', [id, adminClientSiret]);
+//         if (record.length === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé ou non rattaché à votre établissement.' });
+//         }
+
+//         const [result] = await pool.execute(
+//             'UPDATE temperature_records SET type = ?, location = ?, temperature = ?, temperature_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+//             [type, location, parseFloat(temperature), temperature_type || 'positive', notes || null, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé non trouvé ou aucune modification effectuée.' });
+//         }
+//         res.json({ message: 'Relevé de température mis à jour avec succès.' });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour du relevé de température par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
+//     }
+// };
+
+// exports.deleteTemperatureRecordForAdminClient = async (req, res) => {
+//     const { id } = req.params; // ID du relevé de température
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Vérifier que le relevé existe et appartient bien à l'établissement de cet admin_client
+//         const [record] = await pool.execute('SELECT id FROM temperature_records WHERE id = ? AND siret_etablissement = ?', [id, adminClientSiret]);
+//         if (record.length === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé ou non rattaché à votre établissement.' });
+//         }
+
+//         const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé non trouvé.' });
+//         }
+//         res.status(204).send();
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression du relevé de température par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
+//     }
+// };
+
+// // --- Méthodes pour Super Admin ---
+
+// exports.getAllTemperatureRecordsAdmin = async (req, res) => {
+//     try {
+//         const pool = await getConnection();
+//         // Jointure avec la table users pour obtenir les détails de l'utilisateur et de l'entreprise
+//         const [records] = await pool.execute(
+//             `SELECT tr.*, u.nom_client, u.prenom_client, u.nom_entreprise AS client_nom_entreprise
+//              FROM temperature_records tr
+//              JOIN users u ON tr.user_id = u.id
+//              ORDER BY tr.timestamp DESC`
+//         );
+//         res.json(records);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération de tous les relevés de température (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
+//     }
+// };
+
+// exports.addTemperatureRecordAdmin = async (req, res) => {
+//     const { user_id, siret_etablissement, type, location, temperature, temperature_type, notes } = req.body;
+
+//     if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || temperature === null) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires (ID utilisateur, SIRET, type, localisation, température) sont requis.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Vérifier que l'user_id existe et que le siret_etablissement existe et correspond à un admin_client
+//         const [userExists] = await pool.execute('SELECT id FROM users WHERE id = ?', [user_id]);
+//         if (userExists.length === 0) {
+//             return res.status(400).json({ message: 'L\'ID utilisateur spécifié n\'existe pas.' });
+//         }
+//         const [siretExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [siret_etablissement]);
+//         if (siretExists.length === 0) {
+//             return res.status(400).json({ message: 'Le SIRET d\'établissement spécifié n\'existe pas ou n\'est pas un admin_client.' });
+//         }
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+//             [user_id, siret_etablissement, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null]
+//         );
+//         res.status(201).json({ message: 'Relevé de température ajouté avec succès.', recordId: result.insertId });
+//     } catch (error) {
+//         console.error('Erreur lors de l\'ajout du relevé de température (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
+//     }
+// };
+
+// exports.updateTemperatureRecordAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     const { user_id, siret_etablissement, type, location, temperature, temperature_type, notes } = req.body;
+
+//     if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || temperature === null) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires (ID utilisateur, SIRET, type, localisation, température) sont requis pour la mise à jour.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Vérifier que le relevé existe
+//         const [recordExists] = await pool.execute('SELECT id FROM temperature_records WHERE id = ?', [id]);
+//         if (recordExists.length === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé.' });
+//         }
+
+//         // Vérifier que l'user_id existe et que le siret_etablissement existe et correspond à un admin_client
+//         const [userExists] = await pool.execute('SELECT id FROM users WHERE id = ?', [user_id]);
+//         if (userExists.length === 0) {
+//             return res.status(400).json({ message: 'L\'ID utilisateur spécifié n\'existe pas.' });
+//         }
+//         const [siretExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [siret_etablissement]);
+//         if (siretExists.length === 0) {
+//             return res.status(400).json({ message: 'Le SIRET d\'établissement spécifié n\'existe pas ou n\'est pas un admin_client.' });
+//         }
+
+//         const [result] = await pool.execute(
+//             'UPDATE temperature_records SET user_id = ?, siret_etablissement = ?, type = ?, location = ?, temperature = ?, temperature_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+//             [user_id, siret_etablissement, type, location, parseFloat(temperature), temperature_type || 'positive', notes || null, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé non trouvé ou aucune modification effectuée.' });
+//         }
+//         res.json({ message: 'Relevé de température mis à jour avec succès.' });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour du relevé de température (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
+//     }
+// };
+
+// exports.deleteTemperatureRecordAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     try {
+//         const pool = await getConnection();
+//         const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé.' });
+//         }
+//         res.status(204).send();
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression du relevé de température (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
+//     }
+// };
+
+
+
+
+
+
+
+
+
+
+
+// // backend/src/controllers/temperatureController.js
+// const { getConnection } = require('../config/db');
+
+// // --- Common function to get temperature records by user ID (for 'employer' role) ---
+// exports.getTemperatureRecordsByClient = async (req, res) => {
+//     const userId = req.user.id; // L'ID de l'employé connecté
+//     try {
+//         const pool = await getConnection();
+//         // MODIFICATION ICI : Récupérer le admin_client_siret de l'employé connecté
+//         const [userData] = await pool.execute('SELECT admin_client_siret FROM users WHERE id = ? AND role = "employer"', [userId]);
+//         if (userData.length === 0 || !userData[0].admin_client_siret) { // Vérifie admin_client_siret
+//             return res.status(403).json({ message: 'Accès refusé. Employé non trouvé ou rattaché à aucun établissement (admin_client_siret non défini).' });
+//         }
+//         const employerSiret = userData[0].admin_client_siret; // Utilise admin_client_siret
+
+//         const [records] = await pool.execute(
+//             'SELECT id, type, location, temperature, timestamp, notes, temperature_type FROM temperature_records WHERE user_id = ? AND siret_etablissement = ? ORDER BY timestamp DESC',
+//             [userId, employerSiret]
+//         );
+//         res.status(200).json(records);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération des relevés de température pour l\'employé:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
+//     }
+// };
+
+// // --- Common function to create temperature record (for 'employer' role) ---
+// exports.createTemperatureRecord = async (req, res) => {
+//     const userId = req.user.id; // L'ID de l'employé connecté
+//     const { type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+
+//     if (!type || !location || temperature === undefined || !timestamp || !temperature_type) {
+//         return res.status(400).json({ message: 'Type, emplacement, température, date/heure et type de température sont requis.' });
+//     }
+//     if (!['positive', 'negative'].includes(temperature_type)) {
+//         return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // MODIFICATION ICI : Récupérer le admin_client_siret de l'employé connecté
+//         const [userData] = await pool.execute('SELECT admin_client_siret FROM users WHERE id = ? AND role = "employer"', [userId]);
+//         if (userData.length === 0 || !userData[0].admin_client_siret) { // Vérifie admin_client_siret
+//             return res.status(403).json({ message: 'Accès refusé. Employé non trouvé ou rattaché à aucun établissement (admin_client_siret non défini).' });
+//         }
+//         const siretEtablissement = userData[0].admin_client_siret; // Utilise admin_client_siret
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+//             [userId, siretEtablissement, type, location, temperature, timestamp, temperature_type, notes]
+//         );
+
+//         const newRecord = { id: result.insertId, user_id: userId, siret_etablissement: siretEtablissement, type, location, temperature, timestamp, temperature_type, notes };
+//         res.status(201).json(newRecord);
+//     } catch (error) {
+//         console.error('Erreur lors de l\'ajout du relevé de température:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
+//     }
+// };
+
+// // --- Common function to update temperature record (for 'employer' role) ---
+// exports.updateTemperatureRecordByClient = async (req, res) => {
+//     const { id } = req.params;
+//     const userId = req.user.id; // L'ID de l'employé connecté
+//     const { type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+
+//     if (!type || !location || temperature === undefined || !timestamp || !temperature_type) {
+//         return res.status(400).json({ message: 'Type, emplacement, température, date/heure et type de température sont requis pour la mise à jour.' });
+//     }
+//     if (!['positive', 'negative'].includes(temperature_type)) {
+//         return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Vérifier que le relevé appartient bien à l'employé connecté ET à son établissement
+//         // MODIFICATION ICI : Récupérer le admin_client_siret de l'employé connecté pour la vérification
+//         const [userData] = await pool.execute('SELECT admin_client_siret FROM users WHERE id = ? AND role = "employer"', [userId]);
+//         if (userData.length === 0 || !userData[0].admin_client_siret) {
+//             return res.status(403).json({ message: 'Accès refusé. Employé non trouvé ou rattaché à aucun établissement.' });
+//         }
+//         const employerSiret = userData[0].admin_client_siret;
+
+
+//         const [record] = await pool.execute(
+//             'SELECT user_id FROM temperature_records WHERE id = ? AND user_id = ? AND siret_etablissement = ?', // AJOUT DE siret_etablissement dans la condition
+//             [id, userId, employerSiret]
+//         );
+//         if (record.length === 0) {
+//             return res.status(403).json({ message: 'Accès refusé. Ce relevé n\'appartient pas à cet employé, à son établissement, ou n\'existe pas.' });
+//         }
+
+//         const [result] = await pool.execute(
+//             'UPDATE temperature_records SET type = ?, location = ?, temperature = ?, timestamp = ?, temperature_type = ?, notes = ? WHERE id = ?',
+//             [type, location, temperature, timestamp, temperature_type, notes, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé ou aucune modification effectuée.' });
+//         }
+
+//         const updatedRecord = { id: parseInt(id), user_id: userId, type, location, temperature, timestamp, temperature_type, notes };
+//         res.status(200).json(updatedRecord);
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour du relevé de température:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
+//     }
+// };
+
+// // --- Admin Client specific functions (can manage temperature records of their assigned employees) ---
+// // Ces fonctions semblent déjà correctes, car elles utilisent 'siret' pour l'admin_client
+// // et 'admin_client_siret' pour vérifier la liaison avec les employés.
+// exports.getTemperatureRecordsForAdminClient = async (req, res) => {
+//     const adminClientId = req.user.id;
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         const [records] = await pool.execute(
+//             'SELECT tr.id, tr.type, tr.location, tr.temperature, tr.timestamp, tr.notes, tr.created_at, tr.user_id, tr.temperature_type, ' +
+//             'u.nom_entreprise AS client_nom_entreprise, u.nom_client AS client_nom_client ' +
+//             'FROM temperature_records tr ' +
+//             'JOIN users u ON tr.user_id = u.id ' +
+//             'WHERE tr.siret_etablissement = ? AND u.role = "employer" ' + // Filtrer par siret_etablissement et rôle 'employer'
+//             'ORDER BY tr.timestamp DESC',
+//             [adminClientSiret]
+//         );
+//         res.status(200).json(records);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération des relevés de température pour l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des relevés.' });
+//     }
+// };
+
+// exports.addTemperatureRecordByAdminClient = async (req, res) => {
+//     const adminClientId = req.user.id;
+//     const { user_id, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+
+//     if (!user_id || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
+//         return res.status(400).json({ message: 'ID utilisateur, type, emplacement, température, date/heure et type de température sont requis.' });
+//     }
+//     if (!['positive', 'negative'].includes(temperature_type)) {
+//         return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         // Vérifier que l'user_id fourni est bien un employé rattaché à cet admin_client via le SIRET
+//         // ICI : S'assurer que le siret_etablissement de l'employé correspond au admin_client_siret
+//         const [employerData] = await pool.execute(
+//             'SELECT id, admin_client_siret FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', // MODIFICATION ICI
+//             [user_id, adminClientSiret]
+//         );
+//         if (employerData.length === 0) {
+//             return res.status(403).json({ message: 'Accès refusé. L\'utilisateur spécifié n\'est pas un employé de votre établissement.' });
+//         }
+//         // Le SIRET de l'employé (qui doit être le même que l'admin client's admin_client_siret)
+//         const employerSiret = employerData[0].admin_client_siret; // MODIFICATION ICI
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+//             [user_id, employerSiret, type, location, temperature, timestamp, temperature_type, notes]
+//         );
+
+//         const newRecord = { id: result.insertId, user_id, siret_etablissement: employerSiret, type, location, temperature, timestamp, temperature_type, notes };
+//         res.status(201).json(newRecord);
+//     } catch (error) {
+//         console.error('Erreur lors de l\'ajout du relevé de température par l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
+//     }
+// };
+
+// exports.updateTemperatureRecordForAdminClient = async (req, res) => {
+//     const { id } = req.params;
+//     const adminClientId = req.user.id;
+//     const { user_id, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+
+//     if (!user_id || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
+//         return res.status(400).json({ message: 'ID utilisateur, type, emplacement, température, date/heure et type de température sont requis pour la mise à jour.' });
+//     }
+//     if (!['positive', 'negative'].includes(temperature_type)) {
+//         return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         // Vérifier que le relevé existe et appartient à un employé de cet admin_client
+//         const [recordToUpdate] = await pool.execute(
+//             'SELECT tr.id FROM temperature_records tr JOIN users u ON tr.user_id = u.id ' +
+//             'WHERE tr.id = ? AND tr.user_id = ? AND u.role = "employer" AND u.admin_client_siret = ?',
+//             [id, user_id, adminClientSiret]
+//         );
+//         if (recordToUpdate.length === 0) {
+//             return res.status(403).json({ message: 'Accès refusé. Ce relevé n\'appartient pas à un employé de votre établissement ou n\'existe pas.' });
+//         }
+
+//         const [result] = await pool.execute(
+//             'UPDATE temperature_records SET user_id = ?, type = ?, location = ?, temperature = ?, timestamp = ?, temperature_type = ?, notes = ? WHERE id = ?',
+//             [user_id, type, location, temperature, timestamp, temperature_type, notes, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé ou aucune modification effectuée.' });
+//         }
+
+//         const updatedRecord = { id: parseInt(id), user_id, type, location, temperature, timestamp, temperature_type, notes };
+//         res.status(200).json(updatedRecord);
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour du relevé de température par l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
+//     }
+// };
+
+// exports.deleteTemperatureRecordForAdminClient = async (req, res) => {
+//     const { id } = req.params;
+//     const adminClientId = req.user.id;
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupérer le SIRET de l'admin_client connecté
+//         const [adminClientData] = await pool.execute('SELECT siret FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientData.length === 0 || !adminClientData[0].siret) {
+//             return res.status(404).json({ message: 'Admin Client non trouvé ou SIRET non défini.' });
+//         }
+//         const adminClientSiret = adminClientData[0].siret;
+
+//         // Vérifier que le relevé existe et appartient à un employé de cet admin_client
+//         const [recordToDelete] = await pool.execute(
+//             'SELECT tr.id FROM temperature_records tr JOIN users u ON tr.user_id = u.id ' +
+//             'WHERE tr.id = ? AND u.role = "employer" AND u.admin_client_siret = ?',
+//             [id, adminClientSiret]
+//         );
+//         if (recordToDelete.length === 0) {
+//             return res.status(403).json({ message: 'Accès refusé. Ce relevé n\'appartient pas à un employé de votre établissement ou n\'existe pas.' });
+//         }
+
+//         const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé.' });
+//         }
+//         res.status(204).send();
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression du relevé de température par l\'admin client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
+//     }
+// };
+
+// // --- Super Admin specific functions (can manage all temperature records) ---
+// exports.getAllTemperatureRecordsAdmin = async (req, res) => {
+//     try {
+//         const pool = await getConnection();
+//         const [records] = await pool.execute(
+//             'SELECT tr.id, tr.type, tr.location, tr.temperature, tr.timestamp, tr.notes, tr.created_at, tr.user_id, tr.siret_etablissement, tr.temperature_type, ' +
+//             'u.nom_entreprise AS client_nom_entreprise, u.nom_client AS client_nom_client, u.prenom_client AS client_prenom_client ' +
+//             'FROM temperature_records tr ' +
+//             'JOIN users u ON tr.user_id = u.id ' +
+//             'ORDER BY tr.timestamp DESC'
+//         );
+//         res.status(200).json(records);
+//     } catch (error) {
+//         console.error('Error fetching all temperature records for super admin:', error);
+//         res.status(500).json({ message: 'Internal server error while fetching temperature records.' });
+//     }
+// };
+
+// exports.addTemperatureRecordAdmin = async (req, res) => {
+//     const { user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+
+//     if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
+//         return res.status(400).json({ message: 'User ID, SIRET établissement, type, emplacement, température, date/heure et type de température sont requis.' });
+//     }
+//     if (!['positive', 'negative'].includes(temperature_type)) {
+//         return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Optional: Valider que user_id et siret_etablissement sont cohérents
+//         // Il est préférable de vérifier si l'user_id existe et son rôle, et récupérer le siret_etablissement directement de l'utilisateur
+//         // pour éviter des incohérences si l'admin tente d'assigner un siret incorrect.
+//         // Pour un super_admin, on pourrait laisser tel quel si on assume qu'il connaît la structure.
+//         const [userCheck] = await pool.execute('SELECT siret, admin_client_siret, role FROM users WHERE id = ?', [user_id]);
+//         if (userCheck.length === 0) {
+//             return res.status(400).json({ message: 'User ID fourni non trouvé.' });
+//         }
+//         let actualSiretEtablissement;
+//         if (userCheck[0].role === 'admin_client') {
+//             actualSiretEtablissement = userCheck[0].siret;
+//         } else if (userCheck[0].role === 'employer') {
+//             actualSiretEtablissement = userCheck[0].admin_client_siret;
+//         } else {
+//             // Gérer d'autres rôles si nécessaire, ou rejeter
+//             return res.status(400).json({ message: 'Le rôle de l\'utilisateur fourni ne permet pas la création de relevés de température.' });
+//         }
+//         if (actualSiretEtablissement !== siret_etablissement) {
+//             console.warn(`Incohérence détectée: le SIRET fourni (${siret_etablissement}) ne correspond pas au SIRET de l'établissement de l'utilisateur (${actualSiretEtablissement}). Le SIRET réel de l'utilisateur sera utilisé.`);
+//             siret_etablissement = actualSiretEtablissement; // Prioriser le SIRET de l'utilisateur dans la DB
+//         }
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO temperature_records (user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+//             [user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes]
+//         );
+
+//         const newRecord = { id: result.insertId, user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes };
+//         res.status(201).json(newRecord);
+//     } catch (error) {
+//         console.error('Erreur lors de l\'ajout du relevé de température par le super admin:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de l\'ajout du relevé.' });
+//     }
+// };
+
+// exports.updateTemperatureRecordAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     const { user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes = null } = req.body;
+
+//     if (!user_id || !siret_etablissement || !type || !location || temperature === undefined || !timestamp || !temperature_type) {
+//         return res.status(400).json({ message: 'User ID, SIRET établissement, type, emplacement, température, date/heure et type de température sont requis pour la mise à jour.' });
+//     }
+//     if (!['positive', 'negative'].includes(temperature_type)) {
+//         return res.status(400).json({ message: 'Invalid temperature_type. Must be "positive" or "negative".' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Optional: Valider que user_id et siret_etablissement sont cohérents
+//         const [userCheck] = await pool.execute('SELECT siret, admin_client_siret, role FROM users WHERE id = ?', [user_id]);
+//         if (userCheck.length === 0) {
+//             return res.status(400).json({ message: 'User ID fourni non trouvé.' });
+//         }
+//         let actualSiretEtablissement;
+//         if (userCheck[0].role === 'admin_client') {
+//             actualSiretEtablissement = userCheck[0].siret;
+//         } else if (userCheck[0].role === 'employer') {
+//             actualSiretEtablissement = userCheck[0].admin_client_siret;
+//         } else {
+//             // Gérer d'autres rôles si nécessaire, ou rejeter
+//             return res.status(400).json({ message: 'Le rôle de l\'utilisateur fourni ne permet pas la mise à jour de relevés de température.' });
+//         }
+//         if (actualSiretEtablissement !== siret_etablissement) {
+//             console.warn(`Incohérence détectée: le SIRET fourni (${siret_etablissement}) ne correspond pas au SIRET de l'établissement de l'utilisateur (${actualSiretEtablissement}).`);
+//             // Décidez si vous voulez permettre la mise à jour avec le SIRET fourni ou forcer le SIRET réel de l'utilisateur
+//             // Pour l'instant, on laisse le SIRET fourni mais on loggue l'avertissement.
+//         }
+
+//         const [result] = await pool.execute(
+//             'UPDATE temperature_records SET user_id = ?, siret_etablissement = ?, type = ?, location = ?, temperature = ?, timestamp = ?, temperature_type = ?, notes = ? WHERE id = ?',
+//             [user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes, id]
+//         );
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé ou aucune modification effectuée.' });
+//         }
+
+//         const updatedRecord = { id: parseInt(id), user_id, siret_etablissement, type, location, temperature, timestamp, temperature_type, notes };
+//         res.status(200).json(updatedRecord);
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour du relevé de température par le super admin:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du relevé.' });
+//     }
+// };
+
+// exports.deleteTemperatureRecordAdmin = async (req, res) => {
+//     const { id } = req.params;
+
+//     try {
+//         const pool = await getConnection();
+//         const [result] = await pool.execute('DELETE FROM temperature_records WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Relevé de température non trouvé.' });
+//         }
+//         res.status(204).send();
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression du relevé de température par le super admin:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression du relevé.' });
+//     }
+// };
 
 
 

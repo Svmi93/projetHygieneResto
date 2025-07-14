@@ -17,10 +17,10 @@ const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminClientRoutes = require('./routes/adminClientRoutes');
 const temperatureRoutes = require('./routes/temperatureRoutes');
-const equipmentRoutes = require('./routes/equipmentRoutes');
+const equipmentRoutes = require('./routes/equipmentRoutes'); // Importe les routes d'équipement
 const employerRoutes = require('./routes/employerRoutes');
 const alertRoutes = require('./routes/alertRoutes');
-const photoRoutes = require('./routes/photoRoutes'); // <<< NOUVELLE LIGNE : Importe les routes photos
+const photoRoutes = require('./routes/photoRoutes'); // Importe les routes photos
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -32,7 +32,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "http://localhost:5001"], // <<< MODIFIÉ : Autorise les images depuis le backend
+      imgSrc: ["'self'", "data:", "http://localhost:5001", "https://storage.googleapis.com"], // MODIFIÉ : Autorise les images depuis Firebase Storage
       connectSrc: ["'self'", "http://localhost:5001", "http://localhost:5173"],
     },
   },
@@ -46,7 +46,7 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
-// <<< NOUVELLE LIGNE : Middleware pour servir les fichiers statiques (photos uploadées)
+// Middleware pour servir les fichiers statiques (photos uploadées localement, si utilisé)
 // Les photos seront accessibles via http://localhost:5001/uploads/nom_du_fichier.jpg
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -58,22 +58,19 @@ async function startServer() {
     await initializeDatabasePool();
     console.log('Connexion à la base de données MySQL réussie via config/db !');
 
-    // --- PLUS DE LIGNES POUR LA SYNCHRONISATION SEQUELIZE ICI ---
-    // La synchronisation de la base de données sera gérée manuellement ou via des scripts SQL/migrations séparés.
-
     // Définition des routes de l'API
     app.use('/api/auth', authRoutes);
     app.use('/api/users', userRoutes);
     app.use('/api/admin', adminRoutes);
     app.use('/api/admin-client', adminClientRoutes);
     app.use('/api/employer', employerRoutes);
-    app.use('/api', temperatureRoutes);
-    app.use('/api/admin-client/equipments', equipmentRoutes);
-    app.use('/api/employees/my-locations', equipmentRoutes);
+    app.use('/api', temperatureRoutes); // Les routes de température sont montées directement sous /api
+    app.use('/api', equipmentRoutes); // MODIFIÉ : Monte les routes d'équipement directement sous /api
+    // La ligne app.use('/api/employees/my-locations', equipmentRoutes); a été supprimée car incorrecte.
 
-    // Utilisation des routes d'alertes
+    // Utilisation des routes d'alertes et de photos
     app.use('/api/alerts', alertRoutes);
-    app.use('/api/photos', photoRoutes); // <<< NOUVELLE LIGNE : Utilise les routes photos
+    app.use('/api/photos', photoRoutes);
 
     // Route de test simple pour vérifier que l'API fonctionne
     app.get('/', (req, res) => {
@@ -97,6 +94,117 @@ async function startServer() {
 
 // Appeler la fonction asynchrone pour lancer le serveur
 startServer();
+
+
+
+
+
+
+
+
+
+
+
+
+// // backend/src/server.js
+// require('dotenv').config(); // Charger les variables d'environnement au tout début
+// const express = require('express');
+// const bodyParser = require('body-parser');
+// const cors = require('cors');
+// const helmet = require('helmet'); // Import Helmet
+// const path = require('path'); // Importe le module 'path' pour gérer les chemins de fichiers
+
+// // IMPORTER initializeDatabasePool et getConnection (qui est getPooledConnection dans db.js)
+// const { initializeDatabasePool } = require('./config/db'); // On n'a besoin que de initializeDatabasePool ici
+// // Si ta tâche cron a besoin de getConnection, elle devra l'importer elle-même ou tu peux la passer.
+// const startDailyTemperatureCheck = require('./jobs/dailyTemperatureCheck'); // Importez la tâche cron
+
+// // Routes
+// const authRoutes = require('./routes/authRoutes');
+// const userRoutes = require('./routes/userRoutes');
+// const adminRoutes = require('./routes/adminRoutes');
+// const adminClientRoutes = require('./routes/adminClientRoutes');
+// const temperatureRoutes = require('./routes/temperatureRoutes');
+// const equipmentRoutes = require('./routes/equipmentRoutes');
+// const employerRoutes = require('./routes/employerRoutes');
+// const alertRoutes = require('./routes/alertRoutes');
+// const photoRoutes = require('./routes/photoRoutes'); // <<< NOUVELLE LIGNE : Importe les routes photos
+
+// const app = express();
+// const PORT = process.env.PORT || 5001;
+
+// // Middleware
+// app.use(helmet({
+//   contentSecurityPolicy: {
+//     directives: {
+//       defaultSrc: ["'self'"],
+//       scriptSrc: ["'self'", "'unsafe-eval'"],
+//       styleSrc: ["'self'", "'unsafe-inline'"],
+//       imgSrc: ["'self'", "data:", "http://localhost:5001"], // <<< MODIFIÉ : Autorise les images depuis le backend
+//       connectSrc: ["'self'", "http://localhost:5001", "http://localhost:5173"],
+//     },
+//   },
+// }));
+
+// app.use(cors({
+//   origin: 'http://localhost:5173',
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+//   credentials: true
+// }));
+// app.use(bodyParser.json());
+
+// // <<< NOUVELLE LIGNE : Middleware pour servir les fichiers statiques (photos uploadées)
+// // Les photos seront accessibles via http://localhost:5001/uploads/nom_du_fichier.jpg
+// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+
+// // Démarrage du serveur et initialisation de la base de données
+// async function startServer() {
+//   try {
+//     // Initialiser le pool de connexions à la base de données UNE SEULE FOIS au démarrage
+//     await initializeDatabasePool();
+//     console.log('Connexion à la base de données MySQL réussie via config/db !');
+
+//     // --- PLUS DE LIGNES POUR LA SYNCHRONISATION SEQUELIZE ICI ---
+//     // La synchronisation de la base de données sera gérée manuellement ou via des scripts SQL/migrations séparés.
+
+//     // Définition des routes de l'API
+//     app.use('/api/auth', authRoutes);
+//     app.use('/api/users', userRoutes);
+//     app.use('/api/admin', adminRoutes);
+//     app.use('/api/admin-client', adminClientRoutes);
+//     app.use('/api/employer', employerRoutes);
+//     app.use('/api', temperatureRoutes);
+//     app.use('/api/admin-client/equipments', equipmentRoutes);
+//     app.use('/api/employees/my-locations', equipmentRoutes);
+
+//     // Utilisation des routes d'alertes
+//     app.use('/api/alerts', alertRoutes);
+//     app.use('/api/photos', photoRoutes); // <<< NOUVELLE LIGNE : Utilise les routes photos
+
+//     // Route de test simple pour vérifier que l'API fonctionne
+//     app.get('/', (req, res) => {
+//       res.send('API HygieneResto en cours d\'exécution !');
+//     });
+
+//     // Démarrage de l'écoute du serveur HTTP
+//     app.listen(PORT, () => {
+//       console.log(`Serveur démarré sur le port ${PORT}`);
+
+//       // Démarrage de la tâche cron une fois que le serveur écoute
+//       startDailyTemperatureCheck();
+//     });
+
+//   } catch (err) {
+//     // En cas d'échec de la connexion à la base de données ou du démarrage du serveur
+//     console.error('Échec de la connexion à la base de données MySQL ou démarrage du serveur:', err);
+//     process.exit(1);
+//   }
+// }
+
+// // Appeler la fonction asynchrone pour lancer le serveur
+// startServer();
 
 
 
