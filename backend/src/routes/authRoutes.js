@@ -1,16 +1,16 @@
-// backend/src/routes/authRoutes.js
+/// backend/src/routes/authRoutes.js (Exemple)
 const express = require('express');
 const router = express.Router();
-// Importe le contrôleur d'authentification qui contient les logiques de login et register
-const authController = require('../controllers/authController');
+const authController = require('../controllers/authController'); // Assurez-vous que le chemin est correct
 
-// Route pour l'enregistrement d'un nouvel utilisateur
-// La logique est maintenant déléguée à authController.register
+// Route de connexion
+router.post('/login', authController.login);
+
+// Route d'enregistrement
 router.post('/register', authController.register);
 
-// Route pour la connexion de l'utilisateur
-// La logique est maintenant déléguée à authController.login
-router.post('/login', authController.login);
+// --- NOUVELLE ROUTE POUR VÉRIFIER LE TOKEN ---
+router.post('/verify-token', authController.verifyToken); // C'est cette route qui manquait et causait le 404
 
 module.exports = router;
 
