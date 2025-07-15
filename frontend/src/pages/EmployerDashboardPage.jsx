@@ -1,93 +1,62 @@
 // frontend/src/pages/EmployerDashboardPage.jsx
-import React, { useState, useEffect } from 'react';
-import axiosInstance from '../api/axiosInstance'; // MODIFIÉ: Utilise axiosInstance
-import TemperatureEntryForm from '../components/TemperatureEntryForm';
+import { useEffect, useState } from 'react';
+import axiosInstance from '../api/axiosInstance';
 import DashboardLayout from '../components/DashboardLayout';
+import TemperatureEntryForm from '../components/TemperatureEntryForm';
 import './EmployerDashboardPage.css';
 
-// --- IMPORTS POUR LES PHOTOS ---
-import PhotoUploadForm from '../components/PhotoUploadForm'; // Composant pour l'upload des photos
-import PhotoGallery from '../components/PhotoGallery';     // Composant pour l'affichage des photos
-// --- FIN IMPORTS PHOTOS ---
-
 // --- IMPORTS POUR LES ALERTES ---
-import AlertPopup from '../components/AlertPopup'; // Importe le composant de pop-up
-import { getMyAlerts, markAlertAsRead } from '../services/alertService'; // Importe le service d'alertes
+import AlertPopup from '../components/AlertPopup';
+import { getMyAlerts, markAlertAsRead } from '../services/alertService';
 // --- FIN IMPORTS ALERTES ---
 
+// --- NOUVEAUX IMPORTS POUR LA TRAÇABILITÉ ---
+import AddTraceabilityForm from '../components/Traceability/AddTraceabilityForm';
+import TraceabilityRecordsGallery from '../components/Traceability/TraceabilityRecordsGallery';
+// --- FIN NOUVEAUX IMPORTS TRAÇABILITÉ ---
+
+// --- NOUVEL IMPORT : useAuth ---
+import { useAuth } from '../context/AuthContext';
+// --- FIN NOUVEL IMPORT ---
+
+
 const EmployerDashboardPage = () => {
+  // --- Utilisation de useAuth ---
+  const { user, isAuthenticated } = useAuth(); // Récupérer l'état d'authentification et l'objet user
+  // --- FIN useAuth ---
+
   const [temperatureRecords, setTemperatureRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userRole, setUserRole] = useState(null);
+  // const [userRole, setUserRole] = useState(null); // Plus besoin de le stocker ici si on utilise user.role
   const [uniqueLocations, setUniqueLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('all');
 
   // --- ÉTATS POUR LES ALERTES ---
   const [alerts, setAlerts] = useState([]);
-  const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
+  const [currentAlert, setCurrentAlert] = useState(null);
   // --- FIN ÉTATS ALERTES ---
 
-  // --- ÉTATS POUR LES PHOTOS ---
-  const [adminClientSiret, setAdminClientSiret] = useState(null); // SIRET de l'admin client pour l'employé
-  const [refreshPhotos, setRefreshPhotos] = useState(0); // État pour forcer le rechargement de la galerie
-  const [currentEmployeeId, setCurrentEmployeeId] = useState(null); // ID de l'employé connecté
-  // --- FIN ÉTATS PHOTOS ---
+  // --- ÉTATS POUR LA TRAÇABILITÉ ---
+  const [refreshTraceability, setRefreshTraceability] = useState(0);
+  // --- FIN ÉTATS TRAÇABILITÉ ---
 
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
-    
-    const employeeId = localStorage.getItem('userId'); // Récupère l'ID de l'employé connecté
-    if (employeeId) {
-      setCurrentEmployeeId(employeeId);
+    // --- CONDITIONNEMENT DES APPELS API AVEC isAuthenticated ET user ---
+    if (isAuthenticated && user) {
+      // setUserRole(user.role); // Optionnel : si vous avez encore besoin du rôle ici
+      fetchTemperatureRecords(); // Déclenche les relevés
+      fetchAndDisplayAlerts(); // Déclenche les alertes
+
+      // --- LOGIQUE POUR LES ALERTES (intervalle) ---
+      const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
+      return () => {
+        clearInterval(alertInterval);
+      };
     }
+  }, [isAuthenticated, user, currentAlert, refreshTraceability]); // Ajout de isAuthenticated et user aux dépendances
 
-    fetchTemperatureRecords();
-
-    // --- LOGIQUE POUR RÉCUPÉRER LE SIRET DE L'ADMIN CLIENT POUR L'EMPLOYÉ ---
-    const fetchAdminClientSiret = async () => {
-      try {
-        // MODIFIÉ: Utilise axiosInstance.get()
-        const response = await axiosInstance.get('/users/profile');
-        // Pour un employé, admin_client_siret est directement dans le profil utilisateur
-        if (response.data && response.data.admin_client_siret) {
-          setAdminClientSiret(response.data.admin_client_siret);
-          localStorage.setItem('userSiret', response.data.admin_client_siret); // Utile si tu en as besoin ailleurs
-        } else {
-            console.warn("SIRET de l'admin client non trouvé pour l'employé.");
-            setError("SIRET de l'établissement non trouvé. Contactez votre administrateur.");
-        }
-      } catch (err) {
-        console.error("Erreur lors de la récupération du SIRET de l'admin client pour l'employé:", err);
-        setError("Erreur lors du chargement des informations de l'établissement.");
-      }
-    };
-    fetchAdminClientSiret();
-    // --- FIN LOGIQUE SIRET EMPLOYÉ ---
-
-    // --- LOGIQUE POUR LES ALERTES ---
-    const fetchAndDisplayAlerts = async () => {
-      try {
-        const fetchedAlerts = await getMyAlerts();
-        setAlerts(fetchedAlerts);
-        const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
-        if (newAlert && !currentAlert) {
-          setCurrentAlert(newAlert);
-        }
-      } catch (error) {
-        console.error('Erreur lors de la récupération des alertes pour l\'employé:', error);
-      }
-    };
-
-    fetchAndDisplayAlerts();
-    const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
-
-    return () => {
-      clearInterval(alertInterval);
-    };
-  }, [currentAlert, refreshPhotos]); // refreshPhotos est ajouté aux dépendances pour le rechargement des photos
 
   // --- FONCTION POUR MARQUER L'ALERTE COMME LUE ---
   const handleDismissAlert = async () => {
@@ -110,7 +79,6 @@ const EmployerDashboardPage = () => {
     setLoading(true);
     setError('');
     try {
-      // MODIFIÉ: Utilise axiosInstance.get()
       const response = await axiosInstance.get('/employer/temperatures');
       setTemperatureRecords(response.data);
 
@@ -135,10 +103,9 @@ const EmployerDashboardPage = () => {
     });
   };
 
-  // --- FONCTION POUR RAFRAÎCHIR LA GALERIE PHOTO ---
-  // Cette fonction est appelée après un upload de photo pour rafraîchir PhotoGallery
-  const handlePhotoActionSuccess = () => {
-    setRefreshPhotos(prev => prev + 1); // Incrémente pour déclencher le useEffect dans PhotoGallery
+  // --- FONCTION POUR RAFRAÎCHIR LA GALERIE DE TRAÇABILITÉ ---
+  const handleTraceabilityActionSuccess = () => {
+    setRefreshTraceability(prev => prev + 1);
   };
   // --- FIN FONCTION RAFRAÎCHIR ---
 
@@ -152,22 +119,24 @@ const EmployerDashboardPage = () => {
     {
       label: 'Ajouter Relevé',
       title: 'Ajouter un nouveau relevé de température',
-      content: <TemperatureEntryForm onRecordAdded={handleRecordAdded} userRole={userRole} />
+      content: <TemperatureEntryForm onRecordAdded={handleRecordAdded} userRole={user ? user.role : null} /> 
     },
     {
       label: 'Mes Relevés',
       title: 'Historique de mes relevés de température',
       content: (
-        <>
-          {error && <p className="error-message">{error}</p>}
+        <div className="p-6 bg-white rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Mes Relevés de Température</h3>
+          {error && <p className="error-message text-red-600 mb-4">{error}</p>}
           {loading ? (
-            <p>Chargement des relevés...</p>
+            <p className="text-gray-600">Chargement des relevés...</p>
           ) : (
             <>
-              <div className="location-filter">
-                <label htmlFor="location-select">Filtrer par emplacement:</label>
+              <div className="location-filter mb-4">
+                <label htmlFor="location-select" className="block text-sm font-medium text-gray-700 mb-1">Filtrer par emplacement:</label>
                 <select
                   id="location-select"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
                 >
@@ -180,61 +149,62 @@ const EmployerDashboardPage = () => {
               </div>
 
               {filteredRecords.length === 0 ? (
-                <p>Aucun relevé de température trouvé.</p>
+                <p className="text-center text-gray-600">Aucun relevé de température trouvé.</p>
               ) : (
-                <ul className="temperature-records-list">
-                  {filteredRecords.map(record => (
-                    <li key={record.id} className="record-item">
-                      <p><strong>Type:</strong> {record.type}</p>
-                      <p><strong>Emplacement:</strong> {record.location}</p>
-                      <p><strong>Température:</strong> {record.temperature}°C</p>
-                      <p><strong>Date:</strong> {new Date(record.timestamp).toLocaleString()}</p>
-                      {record.notes && <p><strong>Notes:</strong> {record.notes}</p>}
-                      {/* Pas de bouton de suppression pour les employés sur les relevés de température */}
-                    </li>
-                  ))}
-                </ul>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead>
+                      <tr className="bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="py-3 px-4 border-b">ID</th>
+                        <th className="py-3 px-4 border-b">Type App.</th>
+                        <th className="py-3 px-4 border-b">Emplacement</th>
+                        <th className="py-3 px-4 border-b">Temp.</th>
+                        <th className="py-3 px-4 border-b">Type Temp.</th>
+                        <th className="py-3 px-4 border-b">Date</th>
+                        <th className="py-3 px-4 border-b">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRecords.map(record => (
+                        <tr key={record.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-700">{record.id}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{record.type}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{record.location}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{record.temperature}°C</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{record.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{new Date(record.timestamp).toLocaleString()}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{record.notes || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </>
           )}
-        </>
+        </div>
       )
     },
     {
-      label: 'Gérer les Photos', // NOUVEAU BOUTON POUR LES PHOTOS
-      title: 'Prendre et consulter les photos de produits',
+      label: 'Traçabilité',
+      title: 'Gérer les enregistrements de traçabilité (photos, produits, dates)',
       content: (
-        <div className="employer-section">
-          {adminClientSiret && currentEmployeeId ? ( // S'assure que le SIRET et l'ID employé sont disponibles
-            <>
-              {/* L'employé peut uploader des photos */}
-              <PhotoUploadForm
-                siret={adminClientSiret} // SIRET de l'admin client pour l'association
-                employeeId={currentEmployeeId} // ID de l'employé qui upload
-                onPhotoUploadSuccess={handlePhotoActionSuccess}
-              />
-              <hr style={{ margin: '30px 0', borderColor: '#eee' }} />
-              {/* L'employé peut voir les photos (pas de suppression) */}
-              <PhotoGallery
-                siret={adminClientSiret} // SIRET pour filtrer les photos de son établissement
-                currentUserRole={localStorage.getItem('userRole')} // Passé pour les permissions (empêchera la suppression)
-                // onPhotoDeleted n'est pas nécessaire ici car l'employé ne supprime pas
-                key={refreshPhotos} // Force le re-montage pour rafraîchir après upload
-              />
-            </>
-          ) : (
-            <p>Chargement des informations de l'établissement pour la gestion des photos...</p>
-          )}
+        <div className="traceability-section p-6 bg-white rounded-lg shadow-md">
+          <h2 className="text-2xl font-semibold mb-4 text-gray-800">Gestion de la Traçabilité</h2>
+          <AddTraceabilityForm onRecordAdded={handleTraceabilityActionSuccess} />
+          <div className="mt-8">
+            <h3 className="text-xl font-semibold mb-4 text-gray-700">Galerie des Enregistrements</h3>
+            <TraceabilityRecordsGallery refreshTrigger={refreshTraceability} />
+          </div>
         </div>
       )
     }
   ];
-  // --- FIN DÉFINITION DES BOUTONS ---
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
-      <h2 className="welcome-message">Bienvenue sur votre tableau de bord Employé !</h2>
-      <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour ajouter ou consulter vos relevés de température et gérer les photos.</p>
+      <h2 className="welcome-message text-3xl font-bold text-gray-900 mb-6">Bienvenue sur votre tableau de bord Employé !</h2>
+      <p className="dashboard-intro text-gray-700 mb-8">Utilisez les boutons sur le côté gauche pour ajouter ou consulter vos relevés de température et gérer la traçabilité.</p>
 
       {/* --- AFFICHAGE DE LA POP-UP D'ALERTE --- */}
       {currentAlert && (
@@ -249,6 +219,264 @@ const EmployerDashboardPage = () => {
 };
 
 export default EmployerDashboardPage;
+
+
+
+
+
+
+
+// // frontend/src/pages/EmployerDashboardPage.jsx
+// import React, { useState, useEffect } from 'react';
+// import axiosInstance from '../api/axiosInstance'; // MODIFIÉ: Utilise axiosInstance
+// import TemperatureEntryForm from '../components/TemperatureEntryForm';
+// import DashboardLayout from '../components/DashboardLayout';
+// import './EmployerDashboardPage.css';
+
+// // --- IMPORTS POUR LES PHOTOS ---
+// import PhotoUploadForm from '../components/PhotoUploadForm'; // Composant pour l'upload des photos
+// import PhotoGallery from '../components/PhotoGallery';     // Composant pour l'affichage des photos
+// // --- FIN IMPORTS PHOTOS ---
+
+// // --- IMPORTS POUR LES ALERTES ---
+// import AlertPopup from '../components/AlertPopup'; // Importe le composant de pop-up
+// import { getMyAlerts, markAlertAsRead } from '../services/alertService'; // Importe le service d'alertes
+// // --- FIN IMPORTS ALERTES ---
+
+// const EmployerDashboardPage = () => {
+//   const [temperatureRecords, setTemperatureRecords] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState('');
+//   const [userRole, setUserRole] = useState(null);
+//   const [uniqueLocations, setUniqueLocations] = useState([]);
+//   const [selectedLocation, setSelectedLocation] = useState('all');
+
+//   // --- ÉTATS POUR LES ALERTES ---
+//   const [alerts, setAlerts] = useState([]);
+//   const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
+//   // --- FIN ÉTATS ALERTES ---
+
+//   // --- ÉTATS POUR LES PHOTOS ---
+//   const [adminClientSiret, setAdminClientSiret] = useState(null); // SIRET de l'admin client pour l'employé
+//   const [refreshPhotos, setRefreshPhotos] = useState(0); // État pour forcer le rechargement de la galerie
+//   const [currentEmployeeId, setCurrentEmployeeId] = useState(null); // ID de l'employé connecté
+//   // --- FIN ÉTATS PHOTOS ---
+
+
+//   useEffect(() => {
+//     const role = localStorage.getItem('userRole');
+//     setUserRole(role);
+    
+//     const employeeId = localStorage.getItem('userId'); // Récupère l'ID de l'employé connecté
+//     if (employeeId) {
+//       setCurrentEmployeeId(employeeId);
+//     }
+
+//     fetchTemperatureRecords();
+
+//     // --- LOGIQUE POUR RÉCUPÉRER LE SIRET DE L'ADMIN CLIENT POUR L'EMPLOYÉ ---
+//     const fetchAdminClientSiret = async () => {
+//       try {
+//         // MODIFIÉ: Utilise axiosInstance.get()
+//         const response = await axiosInstance.get('/users/profile');
+//         // Pour un employé, admin_client_siret est directement dans le profil utilisateur
+//         if (response.data && response.data.admin_client_siret) {
+//           setAdminClientSiret(response.data.admin_client_siret);
+//           localStorage.setItem('userSiret', response.data.admin_client_siret); // Utile si tu en as besoin ailleurs
+//         } else {
+//             console.warn("SIRET de l'admin client non trouvé pour l'employé.");
+//             setError("SIRET de l'établissement non trouvé. Contactez votre administrateur.");
+//         }
+//       } catch (err) {
+//         console.error("Erreur lors de la récupération du SIRET de l'admin client pour l'employé:", err);
+//         setError("Erreur lors du chargement des informations de l'établissement.");
+//       }
+//     };
+//     fetchAdminClientSiret();
+//     // --- FIN LOGIQUE SIRET EMPLOYÉ ---
+
+//     // --- LOGIQUE POUR LES ALERTES ---
+//     const fetchAndDisplayAlerts = async () => {
+//       try {
+//         const fetchedAlerts = await getMyAlerts();
+//         setAlerts(fetchedAlerts);
+//         const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
+//         if (newAlert && !currentAlert) {
+//           setCurrentAlert(newAlert);
+//         }
+//       } catch (error) {
+//         console.error('Erreur lors de la récupération des alertes pour l\'employé:', error);
+//       }
+//     };
+
+//     fetchAndDisplayAlerts();
+//     const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
+
+//     return () => {
+//       clearInterval(alertInterval);
+//     };
+//   }, [currentAlert, refreshPhotos]); // refreshPhotos est ajouté aux dépendances pour le rechargement des photos
+
+//   // --- FONCTION POUR MARQUER L'ALERTE COMME LUE ---
+//   const handleDismissAlert = async () => {
+//     if (currentAlert) {
+//       try {
+//         await markAlertAsRead(currentAlert.id);
+//         setAlerts(prevAlerts => prevAlerts.map(a =>
+//           a.id === currentAlert.id ? { ...a, status: 'read' } : a
+//         ));
+//         setCurrentAlert(null);
+//       } catch (error) {
+//         console.error('Erreur lors du marquage de l\'alerte comme lue pour l\'employé:', error);
+//       }
+//     }
+//   };
+//   // --- FIN FONCTION ---
+
+
+//   const fetchTemperatureRecords = async () => {
+//     setLoading(true);
+//     setError('');
+//     try {
+//       // MODIFIÉ: Utilise axiosInstance.get()
+//       const response = await axiosInstance.get('/employer/temperatures');
+//       setTemperatureRecords(response.data);
+
+//       const locations = [...new Set(response.data.map(record => record.location))];
+//       setUniqueLocations(['all', ...locations]);
+
+//     } catch (err) {
+//       console.error('Erreur lors de la récupération de mes relevés:', err);
+//       setError('Erreur lors de la récupération de mes relevés.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const handleRecordAdded = (newRecord) => {
+//     setTemperatureRecords(prevRecords => [newRecord, ...prevRecords]);
+//     setUniqueLocations(prevLocations => {
+//       if (!prevLocations.includes(newRecord.location)) {
+//         return [...prevLocations, newRecord.location];
+//       }
+//       return prevLocations;
+//     });
+//   };
+
+//   // --- FONCTION POUR RAFRAÎCHIR LA GALERIE PHOTO ---
+//   // Cette fonction est appelée après un upload de photo pour rafraîchir PhotoGallery
+//   const handlePhotoActionSuccess = () => {
+//     setRefreshPhotos(prev => prev + 1); // Incrémente pour déclencher le useEffect dans PhotoGallery
+//   };
+//   // --- FIN FONCTION RAFRAÎCHIR ---
+
+
+//   const filteredRecords = selectedLocation === 'all'
+//     ? temperatureRecords
+//     : temperatureRecords.filter(record => record.location === selectedLocation);
+
+//   // Définition des boutons pour la barre latérale
+//   const sidebarButtons = [
+//     {
+//       label: 'Ajouter Relevé',
+//       title: 'Ajouter un nouveau relevé de température',
+//       content: <TemperatureEntryForm onRecordAdded={handleRecordAdded} userRole={userRole} />
+//     },
+//     {
+//       label: 'Mes Relevés',
+//       title: 'Historique de mes relevés de température',
+//       content: (
+//         <>
+//           {error && <p className="error-message">{error}</p>}
+//           {loading ? (
+//             <p>Chargement des relevés...</p>
+//           ) : (
+//             <>
+//               <div className="location-filter">
+//                 <label htmlFor="location-select">Filtrer par emplacement:</label>
+//                 <select
+//                   id="location-select"
+//                   value={selectedLocation}
+//                   onChange={(e) => setSelectedLocation(e.target.value)}
+//                 >
+//                   {uniqueLocations.map(loc => (
+//                     <option key={loc} value={loc}>
+//                       {loc === 'all' ? 'Tous les relevés' : loc}
+//                     </option>
+//                   ))}
+//                 </select>
+//               </div>
+
+//               {filteredRecords.length === 0 ? (
+//                 <p>Aucun relevé de température trouvé.</p>
+//               ) : (
+//                 <ul className="temperature-records-list">
+//                   {filteredRecords.map(record => (
+//                     <li key={record.id} className="record-item">
+//                       <p><strong>Type:</strong> {record.type}</p>
+//                       <p><strong>Emplacement:</strong> {record.location}</p>
+//                       <p><strong>Température:</strong> {record.temperature}°C</p>
+//                       <p><strong>Date:</strong> {new Date(record.timestamp).toLocaleString()}</p>
+//                       {record.notes && <p><strong>Notes:</strong> {record.notes}</p>}
+//                       {/* Pas de bouton de suppression pour les employés sur les relevés de température */}
+//                     </li>
+//                   ))}
+//                 </ul>
+//               )}
+//             </>
+//           )}
+//         </>
+//       )
+//     },
+//     {
+//       label: 'Gérer les Photos', // NOUVEAU BOUTON POUR LES PHOTOS
+//       title: 'Prendre et consulter les photos de produits',
+//       content: (
+//         <div className="employer-section">
+//           {adminClientSiret && currentEmployeeId ? ( // S'assure que le SIRET et l'ID employé sont disponibles
+//             <>
+//               {/* L'employé peut uploader des photos */}
+//               <PhotoUploadForm
+//                 siret={adminClientSiret} // SIRET de l'admin client pour l'association
+//                 employeeId={currentEmployeeId} // ID de l'employé qui upload
+//                 onPhotoUploadSuccess={handlePhotoActionSuccess}
+//               />
+//               <hr style={{ margin: '30px 0', borderColor: '#eee' }} />
+//               {/* L'employé peut voir les photos (pas de suppression) */}
+//               <PhotoGallery
+//                 siret={adminClientSiret} // SIRET pour filtrer les photos de son établissement
+//                 currentUserRole={localStorage.getItem('userRole')} // Passé pour les permissions (empêchera la suppression)
+//                 // onPhotoDeleted n'est pas nécessaire ici car l'employé ne supprime pas
+//                 key={refreshPhotos} // Force le re-montage pour rafraîchir après upload
+//               />
+//             </>
+//           ) : (
+//             <p>Chargement des informations de l'établissement pour la gestion des photos...</p>
+//           )}
+//         </div>
+//       )
+//     }
+//   ];
+//   // --- FIN DÉFINITION DES BOUTONS ---
+
+//   return (
+//     <DashboardLayout sidebarButtons={sidebarButtons}>
+//       <h2 className="welcome-message">Bienvenue sur votre tableau de bord Employé !</h2>
+//       <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour ajouter ou consulter vos relevés de température et gérer les photos.</p>
+
+//       {/* --- AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+//       {currentAlert && (
+//           <AlertPopup
+//               message={currentAlert.message}
+//               onDismiss={handleDismissAlert}
+//           />
+//       )}
+//       {/* --- FIN AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+//     </DashboardLayout>
+//   );
+// };
+
+// export default EmployerDashboardPage;
 
 
 

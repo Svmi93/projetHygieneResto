@@ -1,17 +1,10 @@
-// frontend/src/pages/AdminClientDashboardPage.jsx
-import React, { useState, useEffect } from 'react';
-import axiosInstance from '../api/axiosInstance'; // Utilise axiosInstance pour la cohérence
+//// frontend/src/pages/AdminClientDashboardPage.jsx
+import { useEffect, useState } from 'react';
+import axiosInstance from '../api/axiosInstance';
 import DashboardLayout from '../components/DashboardLayout';
-import UserForm from '../components/UserForm';
-import TemperatureEntryForm from '../components/TemperatureEntryForm';
 import EquipmentForm from '../components/EquipmentForm';
+import UserForm from '../components/UserForm';
 import './AdminClientDashboardPage.css';
-
-// --- IMPORTS POUR LES PHOTOS (ANCIENS) ---
-// Ces imports ne sont plus utilisés directement ici, car la gestion des photos est maintenant dans la modale de traçabilité
-// import PhotoUploadForm from '../components/PhotoUploadForm'; 
-// import PhotoGallery from '../components/PhotoGallery';     
-// --- FIN IMPORTS PHOTOS ---
 
 // --- IMPORTS POUR LES ALERTES ---
 import AlertPopup from '../components/AlertPopup';
@@ -19,14 +12,24 @@ import { getMyAlerts, markAlertAsRead } from '../services/alertService';
 // --- FIN IMPORTS ALERTES ---
 
 // --- NOUVEAUX IMPORTS POUR LA TRAÇABILITÉ ---
-import TraceabilityModal from '../components/TraceabilityModal'; // Importe la nouvelle modale
+import AddTraceabilityForm from '../components/Traceability/AddTraceabilityForm';
+import TraceabilityRecordsGallery from '../components/Traceability/TraceabilityRecordsGallery'; // Le chemin ici était "../components/Traceability/TraceabilityRecordsGallery" (corrige si ton dossier TraceabilityRecordsGallery est directement dans components et non dans un sous-dossier Traceability)
 // --- FIN NOUVEAUX IMPORTS TRAÇABILITÉ ---
 
 // --- NOUVEL IMPORT POUR LA GESTION DES CLIENTS ---
-import UserClientManagement from '../components/UserClientManagement'; // Importe le composant de gestion des clients
+import UserClientManagement from '../components/UserClientManagement';
 // --- FIN NOUVEL IMPORT ---
 
+// --- NOUVEL IMPORT : useAuth ---
+import { useAuth } from '../context/AuthContext';
+// --- FIN NOUVEL IMPORT ---
+
+
 const AdminClientDashboardPage = () => {
+  // --- Utilisation de useAuth ---
+  const { user, isAuthenticated } = useAuth();
+  // --- FIN useAuth ---
+
   const [employees, setEmployees] = useState([]);
   const [temperatureRecords, setTemperatureRecords] = useState([]);
   const [equipments, setEquipments] = useState([]);
@@ -44,46 +47,27 @@ const AdminClientDashboardPage = () => {
   // --- FIN ÉTATS ALERTES ---
 
   // --- ÉTATS POUR LA TRAÇABILITÉ ---
-  const [adminClientSiret, setAdminClientSiret] = useState(null);
-  const [showTraceabilityModal, setShowTraceabilityModal] = useState(false); // Contrôle l'affichage de la modale
-  const [refreshTraceability, setRefreshTraceability] = useState(0); // Pour forcer le rechargement de la galerie dans la modale
-  const [currentUserId, setCurrentUserId] = useState(null); // Pour passer l'ID de l'employé qui upload
+  const [refreshTraceability, setRefreshTraceability] = useState(0);
   // --- FIN ÉTATS TRAÇABILITÉ ---
 
 
   useEffect(() => {
-    // Récupère l'ID de l'utilisateur connecté (qui est l'Admin Client ici)
-    const userId = localStorage.getItem('userId');
-    if (userId) {
-      setCurrentUserId(userId);
+    // --- CONDITIONNEMENT DES APPELS API AVEC isAuthenticated ET user ---
+    if (isAuthenticated && user) {
+      fetchAdminClientProfile();
+      fetchMyEmployees();
+      fetchEmployeeTemperatureRecords();
+      fetchEquipments();
+      fetchAndDisplayAlerts(); // Déclenchement initial des alertes
+
+      // --- LOGIQUE POUR LES ALERTES (intervalle) ---
+      const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
+      return () => {
+        clearInterval(alertInterval);
+      };
     }
+  }, [isAuthenticated, user, currentAlert, refreshTraceability]); // Ajout de isAuthenticated et user aux dépendances
 
-    fetchAdminClientProfile();
-    fetchMyEmployees();
-    fetchEmployeeTemperatureRecords();
-    fetchEquipments();
-
-    // --- LOGIQUE POUR LES ALERTES ---
-    const fetchAndDisplayAlerts = async () => {
-      try {
-        const fetchedAlerts = await getMyAlerts();
-        setAlerts(fetchedAlerts);
-        const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
-        if (newAlert && !currentAlert) {
-          setCurrentAlert(newAlert);
-        }
-      } catch (error) {
-        console.error('Erreur lors de la récupération des alertes:', error);
-      }
-    };
-
-    fetchAndDisplayAlerts();
-    const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
-
-    return () => {
-      clearInterval(alertInterval);
-    };
-  }, [currentAlert, refreshTraceability]); // refreshTraceability ajouté aux dépendances
 
   // --- FONCTION POUR MARQUER L'ALERTE COMME LUE ---
   const handleDismissAlert = async () => {
@@ -105,10 +89,6 @@ const AdminClientDashboardPage = () => {
     try {
       const response = await axiosInstance.get('/users/profile');
       setAdminClientProfile(response.data);
-      if (response.data && response.data.siret) {
-        setAdminClientSiret(response.data.siret);
-        localStorage.setItem('userSiret', response.data.siret);
-      }
     } catch (err) {
       console.error('Erreur lors du chargement du profil de l\'Admin Client:', err);
     }
@@ -199,9 +179,24 @@ const AdminClientDashboardPage = () => {
 
   // --- FONCTION POUR RAFRAÎCHIR LA GALERIE DE TRAÇABILITÉ ---
   const handleTraceabilityActionSuccess = () => {
-    setRefreshTraceability(prev => prev + 1); // Incrémente pour déclencher le rechargement
+    setRefreshTraceability(prev => prev + 1);
   };
   // --- FIN FONCTION RAFRAÎCHIR ---
+
+  // --- LOGIQUE POUR LES ALERTES (fetcher) ---
+  const fetchAndDisplayAlerts = async () => {
+    try {
+      const fetchedAlerts = await getMyAlerts();
+      setAlerts(fetchedAlerts);
+      const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
+      if (newAlert && !currentAlert) {
+        setCurrentAlert(newAlert);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des alertes:', error);
+    }
+  };
+
 
   const employeeFormInitialData = adminClientProfile ? {
     admin_client_id: adminClientProfile.id,
@@ -216,37 +211,47 @@ const AdminClientDashboardPage = () => {
       label: 'Gérer mes Employés',
       title: 'Gestion des employés de votre établissement',
       content: (
-        <div className="admin-section">
-          <h3>Liste de mes Employés</h3>
-          {errorEmployees && <p className="error-message">{errorEmployees}</p>}
-          {loadingEmployees ? <p>Chargement des employés...</p> : (
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Email</th><th>Nom</th><th>Prénom</th><th>Entreprise</th><th>SIRET</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {employees.length === 0 ? (
-                  <tr><td colSpan="7">Aucun employé trouvé.</td></tr>
-                ) : (
-                  employees.map(emp => (
-                    <tr key={emp.id}>
-                      <td>{emp.id}</td>
-                      <td>{emp.email}</td>
-                      <td>{emp.nom_client}</td>
-                      <td>{emp.prenom_client}</td>
-                      <td>{emp.nom_entreprise}</td>
-                      <td>{emp.siret}</td>
-                      <td>
-                        <button className="action-button edit-button">Modifier</button>
-                        <button className="action-button delete-button">Supprimer</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="admin-section p-6 bg-white rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Liste de mes Employés</h3>
+          {errorEmployees && <p className="error-message text-red-600 mb-4">{errorEmployees}</p>}
+          {loadingEmployees ? <p className="text-gray-600">Chargement des employés...</p> : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                <thead>
+                  <tr className="bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="py-3 px-4 border-b">ID</th>
+                    <th className="py-3 px-4 border-b">Email</th>
+                    <th className="py-3 px-4 border-b">Nom</th>
+                    <th className="py-3 px-4 border-b">Prénom</th>
+                    <th className="py-3 px-4 border-b">Entreprise</th>
+                    <th className="py-3 px-4 border-b">SIRET</th>
+                    <th className="py-3 px-4 border-b">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.length === 0 ? (
+                    <tr><td colSpan="7" className="py-3 px-4 text-center text-gray-500">Aucun employé trouvé.</td></tr>
+                  ) : (
+                    employees.map(emp => (
+                      <tr key={emp.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-700">{emp.id}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{emp.email}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{emp.nom_client}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{emp.prenom_client}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{emp.nom_entreprise}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{emp.siret}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          <button className="action-button edit-button text-blue-600 hover:text-blue-800 mr-2">Modifier</button>
+                          <button className="action-button delete-button text-red-600 hover:text-red-800">Supprimer</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
-          <h4 className="mt-4">Ajouter un nouvel employé</h4>
+          <h4 className="text-xl font-semibold mt-8 mb-4 text-gray-800">Ajouter un nouvel employé</h4>
           {adminClientProfile ? (
             <UserForm
               onUserCreated={handleEmployeeCreated}
@@ -255,7 +260,7 @@ const AdminClientDashboardPage = () => {
               isCreatingEmployeeByAdminClient={true}
             />
           ) : (
-            <p>Chargement des informations de l'Admin Client pour le formulaire...</p>
+            <p className="text-gray-600">Chargement des informations de l'Admin Client pour le formulaire...</p>
           )}
         </div>
       )
@@ -264,39 +269,49 @@ const AdminClientDashboardPage = () => {
       label: 'Gérer les Équipements',
       title: 'Gestion de vos équipements (frigos, congélateurs, etc.)',
       content: (
-        <div className="admin-section">
-          <h3>Liste de mes Équipements</h3>
-          {errorEquipments && <p className="error-message">{errorEquipments}</p>}
-          {loadingEquipments ? <p>Chargement des équipements...</p> : (
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Nom</th><th>Type</th><th>Temp. Type</th><th>Min. Temp.</th><th>Max. Temp.</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {equipments.length === 0 ? (
-                  <tr><td colSpan="7">Aucun équipement trouvé.</td></tr>
-                ) : (
-                  equipments.map(eq => (
-                    <tr key={eq.id}>
-                      <td>{eq.id}</td>
-                      <td>{eq.name}</td>
-                      <td>{eq.type}</td>
-                      <td>{eq.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
-                      <td>{eq.min_temp !== null ? `${eq.min_temp}°C` : 'N/A'}</td>
-                      <td>{eq.max_temp !== null ? `${eq.max_temp}°C` : 'N/A'}</td>
-                      <td>
-                        <button className="action-button edit-button" onClick={() => {
-                          alert(`Modifier l'équipement ${eq.name}`);
-                        }}>Modifier</button>
-                        <button className="action-button delete-button" onClick={() => handleDeleteEquipment(eq.id)}>Supprimer</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="admin-section p-6 bg-white rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Liste de mes Équipements</h3>
+          {errorEquipments && <p className="error-message text-red-600 mb-4">{errorEquipments}</p>}
+          {loadingEquipments ? <p className="text-gray-600">Chargement des équipements...</p> : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                <thead>
+                  <tr className="bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="py-3 px-4 border-b">ID</th>
+                    <th className="py-3 px-4 border-b">Nom</th>
+                    <th className="py-3 px-4 border-b">Type</th>
+                    <th className="py-3 px-4 border-b">Temp. Type</th>
+                    <th className="py-3 px-4 border-b">Min. Temp.</th>
+                    <th className="py-3 px-4 border-b">Max. Temp.</th>
+                    <th className="py-3 px-4 border-b">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {equipments.length === 0 ? (
+                    <tr><td colSpan="7" className="py-3 px-4 text-center text-gray-500">Aucun équipement trouvé.</td></tr>
+                  ) : (
+                    equipments.map(eq => (
+                      <tr key={eq.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-700">{eq.id}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{eq.name}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{eq.type}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{eq.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{eq.min_temp !== null ? `${eq.min_temp}°C` : 'N/A'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{eq.max_temp !== null ? `${eq.max_temp}°C` : 'N/A'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          <button className="action-button edit-button text-blue-600 hover:text-blue-800 mr-2" onClick={() => {
+                            alert(`Modifier l'équipement ${eq.name}`);
+                          }}>Modifier</button>
+                          <button className="action-button delete-button text-red-600 hover:text-red-800" onClick={() => handleDeleteEquipment(eq.id)}>Supprimer</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
-          <h4 className="mt-4">Ajouter un nouvel équipement</h4>
+          <h4 className="text-xl font-semibold mt-8 mb-4 text-gray-800">Ajouter un nouvel équipement</h4>
           <EquipmentForm onEquipmentSaved={handleEquipmentSaved} />
         </div>
       )
@@ -305,64 +320,82 @@ const AdminClientDashboardPage = () => {
       label: 'Relevés de mes Employés',
       title: 'Historique des relevés de température de votre établissement',
       content: (
-        <div className="admin-section">
-          <h3>Relevés de Température des Employés</h3>
-          {errorTemperatures && <p className="error-message">{errorTemperatures}</p>}
-          {loadingTemperatures ? <p>Chargement des relevés...</p> : (
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Type App.</th><th>Emplacement</th><th>Temp.</th><th>Type Temp.</th><th>Date</th><th>Employé ID</th><th>Entreprise Client</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {temperatureRecords.length === 0 ? (
-                  <tr><td colSpan="9">Aucun relevé de température trouvé.</td></tr>
-                ) : (
-                  temperatureRecords.map(record => (
-                    <tr key={record.id}>
-                      <td>{record.id}</td>
-                      <td>{record.type}</td>
-                      <td>{record.location}</td>
-                      <td>{record.temperature}°C</td>
-                      <td>{record.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
-                      <td>{new Date(record.timestamp).toLocaleString()}</td>
-                      <td>{record.user_id}</td>
-                      <td>{record.client_nom_entreprise}</td>
-                      <td>
-                        <button className="action-button edit-button">Modifier</button>
-                        <button className="action-button delete-button">Supprimer</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="admin-section p-6 bg-white rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Relevés de Température des Employés</h3>
+          {errorTemperatures && <p className="error-message text-red-600 mb-4">{errorTemperatures}</p>}
+          {loadingTemperatures ? <p className="text-gray-600">Chargement des relevés...</p> : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                <thead>
+                  <tr className="bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="py-3 px-4 border-b">ID</th>
+                    <th className="py-3 px-4 border-b">Type App.</th>
+                    <th className="py-3 px-4 border-b">Emplacement</th>
+                    <th className="py-3 px-4 border-b">Temp.</th>
+                    <th className="py-3 px-4 border-b">Type Temp.</th>
+                    <th className="py-3 px-4 border-b">Date</th>
+                    <th className="py-3 px-4 border-b">Employé ID</th>
+                    <th className="py-3 px-4 border-b">Entreprise Client</th>
+                    <th className="py-3 px-4 border-b">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {temperatureRecords.length === 0 ? (
+                    <tr><td colSpan="9" className="py-3 px-4 text-center text-gray-500">Aucun relevé de température trouvé.</td></tr>
+                  ) : (
+                    temperatureRecords.map(record => (
+                      <tr key={record.id} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.id}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.type}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.location}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.temperature}°C</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{new Date(record.timestamp).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.user_id}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{record.client_nom_entreprise}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          <button className="action-button edit-button text-blue-600 hover:text-blue-800 mr-2">Modifier</button>
+                          <button className="action-button delete-button text-red-600 hover:text-red-800">Supprimer</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )
     },
     {
-      label: 'Traçabilité', // NOUVEAU BOUTON POUR LA TRAÇABILITÉ
+      label: 'Traçabilité',
       title: 'Gérer les enregistrements de traçabilité (photos, produits, dates)',
-      onClick: () => setShowTraceabilityModal(true), // Ouvre la modale
-      content: null // Le contenu est dans la modale, pas directement dans le DashboardLayout
+      content: (
+        <div className="traceability-section p-6 bg-white rounded-lg shadow-md">
+          <h2 className="text-2xl font-semibold mb-4 text-gray-800">Gestion de la Traçabilité</h2>
+          <AddTraceabilityForm onRecordAdded={handleTraceabilityActionSuccess} />
+          <div className="mt-8">
+            <h3 className="text-xl font-semibold mb-4 text-gray-700">Galerie des Enregistrements</h3>
+            <TraceabilityRecordsGallery refreshTrigger={refreshTraceability} />
+          </div>
+        </div>
+      )
     },
-    { // NOUVEAU BOUTON : Gérer les Clients
+    {
       label: 'Gérer les Clients',
       title: 'Gérer les informations de vos clients et de leurs établissements',
       content: (
-        <div className="admin-section">
-          {/* Le composant UserClientManagement sera affiché ici */}
+        <div className="admin-section p-6 bg-white rounded-lg shadow-md">
           <UserClientManagement />
         </div>
       )
     }
   ];
-  // --- FIN DÉFINITION DES BOUTONS ---
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
-      <h2 className="welcome-message">Tableau de bord Admin Client</h2>
-      <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements, leurs relevés de température et la traçabilité.</p>
+      <h2 className="welcome-message text-3xl font-bold text-gray-900 mb-6">Tableau de bord Admin Client</h2>
+      <p className="dashboard-intro text-gray-700 mb-8">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements, leurs relevés de température et la traçabilité.</p>
 
       {/* --- AFFICHAGE DE LA POP-UP D'ALERTE --- */}
       {currentAlert && (
@@ -372,22 +405,420 @@ const AdminClientDashboardPage = () => {
           />
       )}
       {/* --- FIN AFFICHAGE DE LA POP-UP D'ALERTE --- */}
-
-      {/* --- AFFICHAGE DE LA MODALE DE TRAÇABILITÉ --- */}
-      {showTraceabilityModal && adminClientSiret && currentUserId && (
-        <TraceabilityModal
-          siret={adminClientSiret}
-          employeeId={currentUserId} // L'Admin Client est l'employé qui crée l'enregistrement ici
-          onClose={() => setShowTraceabilityModal(false)}
-          onRecordActionSuccess={handleTraceabilityActionSuccess}
-        />
-      )}
-      {/* --- FIN AFFICHAGE MODALE TRAÇABILITÉ --- */}
     </DashboardLayout>
   );
 };
 
 export default AdminClientDashboardPage;
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // frontend/src/pages/AdminClientDashboardPage.jsx
+// import React, { useState, useEffect } from 'react';
+// import axiosInstance from '../api/axiosInstance'; // Utilise axiosInstance pour la cohérence
+// import DashboardLayout from '../components/DashboardLayout';
+// import UserForm from '../components/UserForm';
+// import TemperatureEntryForm from '../components/TemperatureEntryForm';
+// import EquipmentForm from '../components/EquipmentForm';
+// import './AdminClientDashboardPage.css';
+
+// // --- IMPORTS POUR LES PHOTOS (ANCIENS) ---
+// // Ces imports ne sont plus utilisés directement ici, car la gestion des photos est maintenant dans la modale de traçabilité
+// // import PhotoUploadForm from '../components/PhotoUploadForm'; 
+// // import PhotoGallery from '../components/PhotoGallery';     
+// // --- FIN IMPORTS PHOTOS ---
+
+// // --- IMPORTS POUR LES ALERTES ---
+// import AlertPopup from '../components/AlertPopup';
+// import { getMyAlerts, markAlertAsRead } from '../services/alertService';
+// // --- FIN IMPORTS ALERTES ---
+
+// // --- NOUVEAUX IMPORTS POUR LA TRAÇABILITÉ ---
+// import TraceabilityModal from '../components/TraceabilityModal'; // Importe la nouvelle modale
+// // --- FIN NOUVEAUX IMPORTS TRAÇABILITÉ ---
+
+// // --- NOUVEL IMPORT POUR LA GESTION DES CLIENTS ---
+// import UserClientManagement from '../components/UserClientManagement'; // Importe le composant de gestion des clients
+// // --- FIN NOUVEL IMPORT ---
+
+// const AdminClientDashboardPage = () => {
+//   const [employees, setEmployees] = useState([]);
+//   const [temperatureRecords, setTemperatureRecords] = useState([]);
+//   const [equipments, setEquipments] = useState([]);
+//   const [loadingEmployees, setLoadingEmployees] = useState(true);
+//   const [errorEmployees, setErrorEmployees] = useState('');
+//   const [loadingTemperatures, setLoadingTemperatures] = useState(true);
+//   const [errorTemperatures, setErrorTemperatures] = useState('');
+//   const [loadingEquipments, setLoadingEquipments] = useState(true);
+//   const [errorEquipments, setErrorEquipments] = useState('');
+//   const [adminClientProfile, setAdminClientProfile] = useState(null);
+
+//   // --- ÉTATS POUR LES ALERTES ---
+//   const [alerts, setAlerts] = useState([]);
+//   const [currentAlert, setCurrentAlert] = useState(null);
+//   // --- FIN ÉTATS ALERTES ---
+
+//   // --- ÉTATS POUR LA TRAÇABILITÉ ---
+//   const [adminClientSiret, setAdminClientSiret] = useState(null);
+//   const [showTraceabilityModal, setShowTraceabilityModal] = useState(false); // Contrôle l'affichage de la modale
+//   const [refreshTraceability, setRefreshTraceability] = useState(0); // Pour forcer le rechargement de la galerie dans la modale
+//   const [currentUserId, setCurrentUserId] = useState(null); // Pour passer l'ID de l'employé qui upload
+//   // --- FIN ÉTATS TRAÇABILITÉ ---
+
+
+//   useEffect(() => {
+//     // Récupère l'ID de l'utilisateur connecté (qui est l'Admin Client ici)
+//     const userId = localStorage.getItem('userId');
+//     if (userId) {
+//       setCurrentUserId(userId);
+//     }
+
+//     fetchAdminClientProfile();
+//     fetchMyEmployees();
+//     fetchEmployeeTemperatureRecords();
+//     fetchEquipments();
+
+//     // --- LOGIQUE POUR LES ALERTES ---
+//     const fetchAndDisplayAlerts = async () => {
+//       try {
+//         const fetchedAlerts = await getMyAlerts();
+//         setAlerts(fetchedAlerts);
+//         const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
+//         if (newAlert && !currentAlert) {
+//           setCurrentAlert(newAlert);
+//         }
+//       } catch (error) {
+//         console.error('Erreur lors de la récupération des alertes:', error);
+//       }
+//     };
+
+//     fetchAndDisplayAlerts();
+//     const alertInterval = setInterval(fetchAndDisplayAlerts, 60000);
+
+//     return () => {
+//       clearInterval(alertInterval);
+//     };
+//   }, [currentAlert, refreshTraceability]); // refreshTraceability ajouté aux dépendances
+
+//   // --- FONCTION POUR MARQUER L'ALERTE COMME LUE ---
+//   const handleDismissAlert = async () => {
+//     if (currentAlert) {
+//       try {
+//         await markAlertAsRead(currentAlert.id);
+//         setAlerts(prevAlerts => prevAlerts.map(a =>
+//           a.id === currentAlert.id ? { ...a, status: 'read' } : a
+//         ));
+//         setCurrentAlert(null);
+//       } catch (error) {
+//         console.error('Erreur lors du marquage de l\'alerte comme lue:', error);
+//       }
+//     }
+//   };
+//   // --- FIN FONCTION ---
+
+//   const fetchAdminClientProfile = async () => {
+//     try {
+//       const response = await axiosInstance.get('/users/profile');
+//       setAdminClientProfile(response.data);
+//       if (response.data && response.data.siret) {
+//         setAdminClientSiret(response.data.siret);
+//         localStorage.setItem('userSiret', response.data.siret);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement du profil de l\'Admin Client:', err);
+//     }
+//   };
+
+//   const fetchMyEmployees = async () => {
+//     setLoadingEmployees(true);
+//     setErrorEmployees('');
+//     try {
+//       const response = await axiosInstance.get('/admin-client/employees');
+//       if (Array.isArray(response.data)) {
+//         setEmployees(response.data);
+//       } else {
+//         console.warn('API for employees did not return an array, defaulting to empty array.', response.data);
+//         setEmployees([]);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des employés:', err);
+//       setErrorEmployees('Erreur lors du chargement des employés.');
+//     } finally {
+//       setLoadingEmployees(false);
+//     }
+//   };
+
+//   const handleEmployeeCreated = (newEmployee) => {
+//     setEmployees(prevEmployees => [...prevEmployees, newEmployee]);
+//   };
+
+//   const fetchEmployeeTemperatureRecords = async () => {
+//     setLoadingTemperatures(true);
+//     setErrorTemperatures('');
+//     try {
+//       const response = await axiosInstance.get('/admin-client/temperatures');
+//       if (Array.isArray(response.data)) {
+//         setTemperatureRecords(response.data);
+//       } else {
+//         console.warn('API for temperature records did not return an array, defaulting to empty array.', response.data);
+//         setTemperatureRecords([]);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des relevés de température des employés:', err);
+//       setErrorTemperatures('Erreur lors du chargement des relevés de température des employés.');
+//     } finally {
+//       setLoadingTemperatures(false);
+//     }
+//   };
+
+//   const fetchEquipments = async () => {
+//     setLoadingEquipments(true);
+//     setErrorEquipments('');
+//     try {
+//       const response = await axiosInstance.get('/admin-client/equipments');
+//       if (response.data && Array.isArray(response.data.equipments)) {
+//         setEquipments(response.data.equipments);
+//       } else {
+//         console.warn('API for equipments did not return an array in the "equipments" property, defaulting to empty array.', response.data);
+//         setEquipments([]);
+//       }
+//     } catch (err) {
+//       console.error('Erreur lors du chargement des équipements:', err);
+//       setErrorEquipments('Erreur lors du chargement des équipements.');
+//     } finally {
+//       setLoadingEquipments(false);
+//     }
+//   };
+
+//   const handleEquipmentSaved = (newOrUpdatedEquipment) => {
+//     if (newOrUpdatedEquipment.id) {
+//       setEquipments(prev => prev.map(eq => eq.id === newOrUpdatedEquipment.id ? newOrUpdatedEquipment : eq));
+//     } else {
+//       setEquipments(prev => [...prev, newOrUpdatedEquipment]);
+//     }
+//     fetchEquipments();
+//   };
+
+//   const handleDeleteEquipment = async (equipmentId) => {
+//     if (window.confirm("Êtes-vous sûr de vouloir supprimer cet équipement ?")) {
+//       try {
+//         await axiosInstance.delete(`/admin-client/equipments/${equipmentId}`);
+//         setEquipments(prev => prev.filter(eq => eq.id !== equipmentId));
+//         alert('Équipement supprimé avec succès.');
+//       } catch (err) {
+//         console.error('Erreur lors de la suppression de l\'équipement:', err);
+//         alert(`Erreur lors de la suppression de l'équipement: ${err.response?.data?.message || err.message}`);
+//       }
+//     }
+//   };
+
+//   // --- FONCTION POUR RAFRAÎCHIR LA GALERIE DE TRAÇABILITÉ ---
+//   const handleTraceabilityActionSuccess = () => {
+//     setRefreshTraceability(prev => prev + 1); // Incrémente pour déclencher le rechargement
+//   };
+//   // --- FIN FONCTION RAFRAÎCHIR ---
+
+//   const employeeFormInitialData = adminClientProfile ? {
+//     admin_client_id: adminClientProfile.id,
+//     isCreatingEmployeeByAdminClient: true
+//   } : {
+//     isCreatingEmployeeByAdminClient: true
+//   };
+
+//   // --- DÉFINITION DES BOUTONS DE LA BARRE LATÉRALE ---
+//   const sidebarButtons = [
+//     {
+//       label: 'Gérer mes Employés',
+//       title: 'Gestion des employés de votre établissement',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Liste de mes Employés</h3>
+//           {errorEmployees && <p className="error-message">{errorEmployees}</p>}
+//           {loadingEmployees ? <p>Chargement des employés...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr><th>ID</th><th>Email</th><th>Nom</th><th>Prénom</th><th>Entreprise</th><th>SIRET</th><th>Actions</th></tr>
+//               </thead>
+//               <tbody>
+//                 {employees.length === 0 ? (
+//                   <tr><td colSpan="7">Aucun employé trouvé.</td></tr>
+//                 ) : (
+//                   employees.map(emp => (
+//                     <tr key={emp.id}>
+//                       <td>{emp.id}</td>
+//                       <td>{emp.email}</td>
+//                       <td>{emp.nom_client}</td>
+//                       <td>{emp.prenom_client}</td>
+//                       <td>{emp.nom_entreprise}</td>
+//                       <td>{emp.siret}</td>
+//                       <td>
+//                         <button className="action-button edit-button">Modifier</button>
+//                         <button className="action-button delete-button">Supprimer</button>
+//                       </td>
+//                     </tr>
+//                   ))
+//                 )}
+//               </tbody>
+//             </table>
+//           )}
+//           <h4 className="mt-4">Ajouter un nouvel employé</h4>
+//           {adminClientProfile ? (
+//             <UserForm
+//               onUserCreated={handleEmployeeCreated}
+//               initialData={employeeFormInitialData}
+//               apiEndpointForCreation="/admin-client/employees"
+//               isCreatingEmployeeByAdminClient={true}
+//             />
+//           ) : (
+//             <p>Chargement des informations de l'Admin Client pour le formulaire...</p>
+//           )}
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Gérer les Équipements',
+//       title: 'Gestion de vos équipements (frigos, congélateurs, etc.)',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Liste de mes Équipements</h3>
+//           {errorEquipments && <p className="error-message">{errorEquipments}</p>}
+//           {loadingEquipments ? <p>Chargement des équipements...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr><th>ID</th><th>Nom</th><th>Type</th><th>Temp. Type</th><th>Min. Temp.</th><th>Max. Temp.</th><th>Actions</th></tr>
+//               </thead>
+//               <tbody>
+//                 {equipments.length === 0 ? (
+//                   <tr><td colSpan="7">Aucun équipement trouvé.</td></tr>
+//                 ) : (
+//                   equipments.map(eq => (
+//                     <tr key={eq.id}>
+//                       <td>{eq.id}</td>
+//                       <td>{eq.name}</td>
+//                       <td>{eq.type}</td>
+//                       <td>{eq.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+//                       <td>{eq.min_temp !== null ? `${eq.min_temp}°C` : 'N/A'}</td>
+//                       <td>{eq.max_temp !== null ? `${eq.max_temp}°C` : 'N/A'}</td>
+//                       <td>
+//                         <button className="action-button edit-button" onClick={() => {
+//                           alert(`Modifier l'équipement ${eq.name}`);
+//                         }}>Modifier</button>
+//                         <button className="action-button delete-button" onClick={() => handleDeleteEquipment(eq.id)}>Supprimer</button>
+//                       </td>
+//                     </tr>
+//                   ))
+//                 )}
+//               </tbody>
+//             </table>
+//           )}
+//           <h4 className="mt-4">Ajouter un nouvel équipement</h4>
+//           <EquipmentForm onEquipmentSaved={handleEquipmentSaved} />
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Relevés de mes Employés',
+//       title: 'Historique des relevés de température de votre établissement',
+//       content: (
+//         <div className="admin-section">
+//           <h3>Relevés de Température des Employés</h3>
+//           {errorTemperatures && <p className="error-message">{errorTemperatures}</p>}
+//           {loadingTemperatures ? <p>Chargement des relevés...</p> : (
+//             <table className="data-table">
+//               <thead>
+//                 <tr><th>ID</th><th>Type App.</th><th>Emplacement</th><th>Temp.</th><th>Type Temp.</th><th>Date</th><th>Employé ID</th><th>Entreprise Client</th><th>Actions</th></tr>
+//               </thead>
+//               <tbody>
+//                 {temperatureRecords.length === 0 ? (
+//                   <tr><td colSpan="9">Aucun relevé de température trouvé.</td></tr>
+//                 ) : (
+//                   temperatureRecords.map(record => (
+//                     <tr key={record.id}>
+//                       <td>{record.id}</td>
+//                       <td>{record.type}</td>
+//                       <td>{record.location}</td>
+//                       <td>{record.temperature}°C</td>
+//                       <td>{record.temperature_type === 'positive' ? 'Positive' : 'Négative'}</td>
+//                       <td>{new Date(record.timestamp).toLocaleString()}</td>
+//                       <td>{record.user_id}</td>
+//                       <td>{record.client_nom_entreprise}</td>
+//                       <td>
+//                         <button className="action-button edit-button">Modifier</button>
+//                         <button className="action-button delete-button">Supprimer</button>
+//                       </td>
+//                     </tr>
+//                   ))
+//                 )}
+//               </tbody>
+//             </table>
+//           )}
+//         </div>
+//       )
+//     },
+//     {
+//       label: 'Traçabilité', // NOUVEAU BOUTON POUR LA TRAÇABILITÉ
+//       title: 'Gérer les enregistrements de traçabilité (photos, produits, dates)',
+//       onClick: () => setShowTraceabilityModal(true), // Ouvre la modale
+//       content: null // Le contenu est dans la modale, pas directement dans le DashboardLayout
+//     },
+//     { // NOUVEAU BOUTON : Gérer les Clients
+//       label: 'Gérer les Clients',
+//       title: 'Gérer les informations de vos clients et de leurs établissements',
+//       content: (
+//         <div className="admin-section">
+//           {/* Le composant UserClientManagement sera affiché ici */}
+//           <UserClientManagement />
+//         </div>
+//       )
+//     }
+//   ];
+//   // --- FIN DÉFINITION DES BOUTONS ---
+
+//   return (
+//     <DashboardLayout sidebarButtons={sidebarButtons}>
+//       <h2 className="welcome-message">Tableau de bord Admin Client</h2>
+//       <p className="dashboard-intro">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements, leurs relevés de température et la traçabilité.</p>
+
+//       {/* --- AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+//       {currentAlert && (
+//           <AlertPopup
+//               message={currentAlert.message}
+//               onDismiss={handleDismissAlert}
+//           />
+//       )}
+//       {/* --- FIN AFFICHAGE DE LA POP-UP D'ALERTE --- */}
+
+//       {/* --- AFFICHAGE DE LA MODALE DE TRAÇABILITÉ --- */}
+//       {showTraceabilityModal && adminClientSiret && currentUserId && (
+//         <TraceabilityModal
+//           siret={adminClientSiret}
+//           employeeId={currentUserId} // L'Admin Client est l'employé qui crée l'enregistrement ici
+//           onClose={() => setShowTraceabilityModal(false)}
+//           onRecordActionSuccess={handleTraceabilityActionSuccess}
+//         />
+//       )}
+//       {/* --- FIN AFFICHAGE MODALE TRAÇABILITÉ --- */}
+//     </DashboardLayout>
+//   );
+// };
+
+// export default AdminClientDashboardPage;
 
 
 

@@ -1,4 +1,3 @@
-
 // frontend/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
@@ -9,14 +8,18 @@ import SuperAdminDashboardPage from './pages/AdminDashboardPage';
 import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
 import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
 import PrivateRoute from './components/PrivateRoute';
-import HomePage from './components/HomePage'; // Importez votre composant HomePage
-import './App.css'; // Styles globaux pour l'application
+import HomePage from './components/HomePage';
+import './App.css';
+
+// CORRIGÉ : Importez AuthProvider depuis le chemin CORRECT et avec le nom CORRECT
+// Le fichier AuthContext.jsx doit être dans frontend/src/context/
+import { AuthProvider } from './context/AuthContext'; // <--- CHEMIN ET NOM CORRIGÉS ICI
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState(null);
-  const [showLoginForm, setShowLoginForm] = useState(false); // Nouvel état pour contrôler l'affichage du formulaire de connexion
-  const [showRegisterForm, setShowRegisterForm] = useState(false); // Nouvel état pour contrôler l'affichage du formulaire d'enregistrement
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('userToken');
@@ -30,8 +33,7 @@ function App() {
   const handleLoginSuccess = (role) => {
     setIsAuthenticated(true);
     setUserRole(role);
-    setShowLoginForm(false); // Ferme le formulaire de connexion après succès
-    // Redirection basée sur le rôle après connexion
+    setShowLoginForm(false);
     switch (role) {
       case 'admin_client':
         window.location.href = '/admin-client-dashboard';
@@ -48,11 +50,10 @@ function App() {
   };
 
   const handleAdminClientRegistered = (newAdminClient) => {
-    // Message de succès (vous pouvez utiliser une modale ici)
     alert('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.');
     console.log('Nouvel Admin Client enregistré:', newAdminClient);
-    setShowRegisterForm(false); // Ferme le formulaire d'enregistrement
-    setShowLoginForm(true); // Ouvre le formulaire de connexion pour qu'il puisse se connecter
+    setShowRegisterForm(false);
+    setShowLoginForm(true);
   };
 
   const handleLogout = () => {
@@ -62,13 +63,12 @@ function App() {
     localStorage.removeItem('clientId');
     setIsAuthenticated(false);
     setUserRole(null);
-    window.location.href = '/'; // Redirige vers la page d'accueil
+    window.location.href = '/';
   };
 
-  // Fonctions pour ouvrir/fermer les formulaires
   const openLoginForm = () => {
     setShowLoginForm(true);
-    setShowRegisterForm(false); // S'assurer que l'autre formulaire est fermé
+    setShowRegisterForm(false);
   };
 
   const closeLoginForm = () => {
@@ -77,7 +77,7 @@ function App() {
 
   const openRegisterForm = () => {
     setShowRegisterForm(true);
-    setShowLoginForm(false); // S'assurer que l'autre formulaire est fermé
+    setShowLoginForm(false);
   };
 
   const closeRegisterForm = () => {
@@ -85,83 +85,76 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="App">
-        <header className="App-header">
-          <div className="logo">
-            {/* Assurez-vous que le chemin de l'image est correct. */}
-            {/* Si 'src/assets/image/logo_1.png' n'est pas accessible, essayez '/logo_1.png' si l'image est à la racine de 'public' */}
-            <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
-          </div>
-          <nav className="main-nav">
-            {/* Boutons visibles si l'utilisateur n'est PAS authentifié */}
-            {!isAuthenticated ? (
-              <div className="auth-buttons"> {/* Conteneur pour les boutons à droite */}
-                <button onClick={openLoginForm} className="nav-button">Connexion</button>
-                <button onClick={openRegisterForm} className="nav-button">Enregistrer un nouveau compte</button>
-              </div>
-            ) : (
-              // Boutons/Liens visibles si l'utilisateur EST authentifié
-              <div className="dashboard-nav"> {/* Conteneur pour les liens de dashboard */}
-                {userRole === 'admin_client' && (
-                  <Link to="/admin-client-dashboard" className="nav-link">Tableau de bord Admin Client</Link>
-                )}
-                {userRole === 'employer' && (
-                  <Link to="/employee-dashboard" className="nav-link">Tableau de bord Employé</Link>
-                )}
-                {userRole === 'super_admin' && (
-                  <Link to="/super-admin-dashboard" className="nav-link">Tableau de bord Super Admin</Link>
-                )}
-                <Link to="/temperature-records" className="nav-link">Relevés de Température</Link>
-                <button onClick={handleLogout} className="logout-button">Déconnexion</button>
-              </div>
-            )}
-          </nav>
-        </header>
-
-        <main>
-          <Routes>
-            {/* La route par défaut '/' */}
-            <Route path="/" element={
-              isAuthenticated ? (
-                // Si authentifié, redirige vers le tableau de bord approprié
-                userRole === 'admin_client' ? <AdminClientDashboardPage /> :
-                userRole === 'employer' ? <EmployeeDashboardPage /> :
-                userRole === 'super_admin' ? <SuperAdminDashboardPage /> :
-                // Si authentifié mais rôle non reconnu, affiche un message ou redirige vers une page par défaut
-                <div className="landing-page-content">Bienvenue! Veuillez sélectionner une option de tableau de bord.</div>
-              ) : (
-                // Si NON authentifié
-                <div className="auth-forms-and-homepage-container">
-                  {/* Affiche le formulaire de connexion si showLoginForm est vrai */}
-                  {showLoginForm && <LoginPage onLoginSuccess={handleLoginSuccess} onCancel={closeLoginForm} />}
-                  {/* Affiche le formulaire d'enregistrement si showRegisterForm est vrai */}
-                  {showRegisterForm && <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} />}
-                  {/* Affiche la HomePage si aucun formulaire n'est ouvert */}
-                  {!showLoginForm && !showRegisterForm && <HomePage />}
+    // ENVELOPPEZ VOTRE APPLICATION AVEC AuthProvider
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <header className="App-header">
+            <div className="logo">
+              <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+            </div>
+            <nav className="main-nav">
+              {!isAuthenticated ? (
+                <div className="auth-buttons">
+                  <button onClick={openLoginForm} className="nav-button">Connexion</button>
+                  <button onClick={openRegisterForm} className="nav-button">Enregistrer un nouveau compte</button>
                 </div>
-              )
-            } />
+              ) : (
+                <div className="dashboard-nav">
+                  {userRole === 'admin_client' && (
+                    <Link to="/admin-client-dashboard" className="nav-link">Tableau de bord Admin Client</Link>
+                  )}
+                  {userRole === 'employer' && (
+                    <Link to="/employee-dashboard" className="nav-link">Tableau de bord Employé</Link>
+                  )}
+                  {userRole === 'super_admin' && (
+                    <Link to="/super-admin-dashboard" className="nav-link">Tableau de bord Super Admin</Link>
+                  )}
+                  <Link to="/temperature-records" className="nav-link">Relevés de Température</Link>
+                  <button onClick={handleLogout} className="logout-button">Déconnexion</button>
+                </div>
+              )}
+            </nav>
+          </header>
 
-            {/* Routes protégées qui nécessitent une authentification et un rôle spécifique */}
-            <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
-            <Route path="/employee-dashboard" element={<PrivateRoute role="employer"><EmployeeDashboardPage /></PrivateRoute>} />
-            <Route path="/super-admin-dashboard" element={<PrivateRoute role="super_admin"><SuperAdminDashboardPage /></PrivateRoute>} />
-            <Route path="/temperature-records" element={<PrivateRoute roles={['employer', 'admin_client', 'super_admin']}><TemperatureRecordsPage /></PrivateRoute>} />
+          <main>
+            <Routes>
+              <Route path="/" element={
+                isAuthenticated ? (
+                  userRole === 'admin_client' ? <AdminClientDashboardPage /> :
+                  userRole === 'employer' ? <EmployeeDashboardPage /> :
+                  userRole === 'super_admin' ? <SuperAdminDashboardPage /> :
+                  <div className="landing-page-content">Bienvenue! Veuillez sélectionner une option de tableau de bord.</div>
+                ) : (
+                  <div className="auth-forms-and-homepage-container">
+                    {showLoginForm && <LoginPage onLoginSuccess={handleLoginSuccess} onCancel={closeLoginForm} />}
+                    {showRegisterForm && <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} />}
+                    {!showLoginForm && !showRegisterForm && <HomePage />}
+                  </div>
+                )
+              } />
 
-            {/* Redirection pour les anciennes routes de connexion/enregistrement, si l'utilisateur les tape manuellement */}
-            {/* Ces routes redirigent vers la page d'accueil où les formulaires sont désormais gérés par état */}
-            <Route path="/login" element={<div className="redirect-message">Redirection vers la page d'accueil pour connexion...</div>} />
-            <Route path="/register-admin-client" element={<div className="redirect-message">Redirection vers la page d'accueil pour enregistrement...</div>} />
+              <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
+              <Route path="/employee-dashboard" element={<PrivateRoute role="employer"><EmployeeDashboardPage /></PrivateRoute>} />
+              <Route path="/super-admin-dashboard" element={<PrivateRoute role="super_admin"><SuperAdminDashboardPage /></PrivateRoute>} />
+              <Route path="/temperature-records" element={<PrivateRoute roles={['employer', 'admin_client', 'super_admin']}><TemperatureRecordsPage /></PrivateRoute>} />
 
-          </Routes>
-        </main>
-      </div>
-    </Router>
+              <Route path="/login" element={<div className="redirect-message">Redirection vers la page d'accueil pour connexion...</div>} />
+              <Route path="/register-admin-client" element={<div className="redirect-message">Redirection vers la page d'accueil pour enregistrement...</div>} />
+
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
 export default App;
+
+
+
+
 
 
 
