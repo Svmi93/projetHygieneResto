@@ -1,16 +1,25 @@
-/// backend/src/routes/authRoutes.js (Exemple)
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController'); // Assurez-vous que le chemin est correct
+const authController = require('../controllers/authController');
+// IMPORTANT: Assurez-vous d'importer le middleware d'authentification ici
+const { authenticateToken } = require('../middleware/auth'); // <--- AJOUTEZ CETTE LIGNE
 
-// Route de connexion
-router.post('/login', authController.login);
-
-// Route d'enregistrement
+// Route pour l'enregistrement d'un nouvel utilisateur
 router.post('/register', authController.register);
 
-// --- NOUVELLE ROUTE POUR VÉRIFIER LE TOKEN ---
-router.post('/verify-token', authController.verifyToken); // C'est cette route qui manquait et causait le 404
+// Route pour la connexion de l'utilisateur
+router.post('/login', authController.login);
+
+// NOUVELLE ROUTE : Route pour vérifier la validité du token
+// Si authenticateToken passe, le token est valide. req.user sera peuplé.
+router.get('/verify-token', authenticateToken, (req, res) => {
+    // Si nous arrivons ici, le token a été validé par le middleware authenticateToken.
+    // Nous renvoyons simplement les informations de l'utilisateur contenues dans le token.
+    res.status(200).json({
+        message: 'Token valide',
+        user: req.user // Contient les infos extraites du token (id, email, role, etc.)
+    });
+});
 
 module.exports = router;
 

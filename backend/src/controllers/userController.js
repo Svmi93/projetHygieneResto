@@ -7,8 +7,10 @@ const bcrypt = require('bcryptjs');
 exports.getProfile = async (req, res) => {
     try {
         const pool = await getConnection();
+        // Sélectionne toutes les colonnes pertinentes, en excluant le password_hash par sécurité.
         const [users] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret, created_at, updated_at FROM users WHERE id = ?', [req.user.id]);
         if (users.length === 0) {
+            // Devrait rarement arriver si l'authentification a réussi.
             return res.status(404).json({ message: 'Profil utilisateur non trouvé.' });
         }
         res.json(users[0]);
@@ -19,24 +21,46 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
+    // Récupère les champs du corps de la requête.
     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, password } = req.body;
-    const userId = req.user.id; // ID de l'utilisateur du token
+    const userId = req.user.id; // L'ID de l'utilisateur est extrait du token JWT.
 
     try {
         const pool = await getConnection();
-        let updateFields = { nom_entreprise, nom_client, prenom_client, email, telephone, adresse };
-        let query = 'UPDATE users SET nom_entreprise = ?, nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-        let params = [nom_entreprise, nom_client, prenom_client, email, telephone, adresse, userId];
+        let updateFields = []; // Tableau pour construire dynamiquement les champs à mettre à jour.
+        let params = []; // Tableau pour stocker les valeurs des champs à mettre à jour.
 
+        // Ajoute les champs à mettre à jour s'ils sont définis dans la requête.
+        if (nom_entreprise !== undefined) { updateFields.push('nom_entreprise = ?'); params.push(nom_entreprise); }
+        if (nom_client !== undefined) { updateFields.push('nom_client = ?'); params.push(nom_client); }
+        if (prenom_client !== undefined) { updateFields.push('prenom_client = ?'); params.push(prenom_client); }
+        if (email !== undefined) { updateFields.push('email = ?'); params.push(email); }
+        // Utilise telephone || null pour stocker null si la chaîne est vide ou undefined
+        if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone || null); }
+        // Utilise adresse || null pour stocker null si la chaîne est vide ou undefined
+        if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse || null); }
+
+        // Si un nouveau mot de passe est fourni, le hacher et l'ajouter aux champs à mettre à jour.
         if (password) {
             const hashedPassword = await bcrypt.hash(password, 10);
-            query = 'UPDATE users SET nom_entreprise = ?, nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-            params = [nom_entreprise, nom_client, prenom_client, email, telephone, adresse, hashedPassword, userId];
+            updateFields.push('password_hash = ?');
+            params.push(hashedPassword);
         }
 
+        // Si aucun champ n'est fourni pour la mise à jour, renvoie une erreur.
+        if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'Aucune donnée à mettre à jour.' });
+        }
+
+        // Ajoute la clause updated_at pour enregistrer la date de la dernière modification.
+        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        params.push(userId); // Ajoute l'ID de l'utilisateur pour la clause WHERE.
+
+        const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
         const [result] = await pool.execute(query, params);
 
         if (result.affectedRows === 0) {
+            // Si affectedRows est 0, l'utilisateur n'a pas été trouvé ou aucune donnée n'a changé.
             return res.status(404).json({ message: 'Utilisateur non trouvé ou aucune modification effectuée.' });
         }
         res.json({ message: 'Profil mis à jour avec succès.' });
@@ -51,6 +75,7 @@ exports.updateProfile = async (req, res) => {
 exports.getAllUsersAdmin = async (req, res) => {
     try {
         const pool = await getConnection();
+        // Récupère tous les utilisateurs, excluant le password_hash.
         const [users] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret, created_at, updated_at FROM users');
         res.json(users);
     } catch (error) {
@@ -62,29 +87,36 @@ exports.getAllUsersAdmin = async (req, res) => {
 exports.createUserAdmin = async (req, res) => {
     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password, role, admin_client_siret } = req.body;
 
+    // Validation des champs obligatoires pour la création.
     if (!nom_entreprise || !nom_client || !prenom_client || !email || !password || !role) {
         return res.status(400).json({ message: 'Tous les champs obligatoires sont requis.' });
     }
 
     try {
         const pool = await getConnection();
+
+        // Vérifier si l'utilisateur avec cet email existe déjà.
         const [existingUser] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
         if (existingUser.length > 0) {
             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
         }
 
+        // Validation spécifique pour le rôle 'admin_client' concernant le SIRET.
         if (role === 'admin_client' && (!siret || siret.length !== 14)) {
             return res.status(400).json({ message: 'Le SIRET est obligatoire et doit contenir 14 chiffres pour un rôle admin_client.' });
         }
+        // Vérifier l'unicité du SIRET si c'est un 'admin_client'.
         if (role === 'admin_client' && siret) {
             const [existingSiret] = await pool.execute('SELECT id FROM users WHERE siret = ?', [siret]);
             if (existingSiret.length > 0) {
                 return res.status(409).json({ message: 'Un autre admin_client utilise déjà ce SIRET.' });
             }
         }
+        // Validation spécifique pour le rôle 'employer' concernant 'admin_client_siret'.
         if (role === 'employer' && (!admin_client_siret || admin_client_siret.length !== 14)) {
             return res.status(400).json({ message: 'Le SIRET de l\'admin client est obligatoire et doit contenir 14 chiffres pour un rôle employer.' });
         }
+        // Vérifier que le 'admin_client_siret' correspond bien à un 'admin_client' existant.
         if (role === 'employer' && admin_client_siret) {
             const [adminClientExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [admin_client_siret]);
             if (adminClientExists.length === 0) {
@@ -94,9 +126,21 @@ exports.createUserAdmin = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Insère le nouvel utilisateur dans la base de données.
         const [result] = await pool.execute(
             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nom_entreprise, nom_client, prenom_client, email, telephone || null, adresse || null, siret || null, hashedPassword, role, admin_client_siret || null]
+            [
+                nom_entreprise,
+                nom_client,
+                prenom_client,
+                email,
+                telephone || null,       // Gère les champs optionnels comme NULL si vides/non définis
+                adresse || null,
+                siret || null,
+                hashedPassword,
+                role,
+                admin_client_siret || null // Gère les champs optionnels comme NULL si vides/non définis
+            ]
         );
 
         res.status(201).json({ message: 'Utilisateur créé avec succès.', userId: result.insertId });
@@ -107,62 +151,76 @@ exports.createUserAdmin = async (req, res) => {
 };
 
 exports.updateUserAdmin = async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params; // ID de l'utilisateur à mettre à jour.
     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password, role, admin_client_siret } = req.body;
 
     try {
         const pool = await getConnection();
+        // Récupère le rôle actuel de l'utilisateur pour les validations spécifiques au rôle.
         const [userToUpdate] = await pool.execute('SELECT role, siret FROM users WHERE id = ?', [id]);
         if (userToUpdate.length === 0) {
             return res.status(404).json({ message: 'Utilisateur non trouvé.' });
         }
+        const currentRole = userToUpdate[0].role; // Le rôle actuel de l'utilisateur
 
         let updateFields = [];
         let params = [];
 
+        // Ajoute les champs à mettre à jour si définis.
         if (nom_entreprise !== undefined) { updateFields.push('nom_entreprise = ?'); params.push(nom_entreprise); }
         if (nom_client !== undefined) { updateFields.push('nom_client = ?'); params.push(nom_client); }
         if (prenom_client !== undefined) { updateFields.push('prenom_client = ?'); params.push(prenom_client); }
         if (email !== undefined) { updateFields.push('email = ?'); params.push(email); }
-        if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone); }
-        if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse); }
+        if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone || null); } // SUGGESTION : Gère vide comme NULL
+        if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse || null); }       // SUGGESTION : Gère vide comme NULL
+
+        // Si le rôle est mis à jour, il est ajouté.
+        // La logique de validation du rôle (admin_client_siret/siret) dépend du rôle final.
+        const targetRole = role !== undefined ? role : currentRole;
         if (role !== undefined) { updateFields.push('role = ?'); params.push(role); }
+
+
         if (siret !== undefined) {
-            if (role === 'admin_client' && siret && siret.length !== 14) {
+            // Validation du SIRET si le rôle est 'admin_client' ou est en train de le devenir.
+            if (targetRole === 'admin_client' && siret && siret.length !== 14) {
                 return res.status(400).json({ message: 'Le SIRET doit contenir 14 chiffres pour un rôle admin_client.' });
             }
-            if (role === 'admin_client' && siret) {
+            if (targetRole === 'admin_client' && siret) {
                 const [existingSiret] = await pool.execute('SELECT id FROM users WHERE siret = ? AND id != ?', [siret, id]);
                 if (existingSiret.length > 0) {
                     return res.status(409).json({ message: 'Un autre admin_client utilise déjà ce SIRET.' });
                 }
             }
-            updateFields.push('siret = ?'); params.push(siret || null);
+            updateFields.push('siret = ?'); params.push(siret || null); // SUGGESTION : Gère vide comme NULL
         }
+
         if (admin_client_siret !== undefined) {
-            if (role === 'employer' && admin_client_siret && admin_client_siret.length !== 14) {
+            // Validation de admin_client_siret si le rôle est 'employer' ou est en train de le devenir.
+            if (targetRole === 'employer' && admin_client_siret && admin_client_siret.length !== 14) {
                 return res.status(400).json({ message: 'Le SIRET de l\'admin client doit contenir 14 chiffres pour un rôle employer.' });
             }
-            if (role === 'employer' && admin_client_siret) {
+            if (targetRole === 'employer' && admin_client_siret) {
                 const [adminClientExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [admin_client_siret]);
                 if (adminClientExists.length === 0) {
                     return res.status(400).json({ message: 'Le SIRET de l\'admin client spécifié n\'existe pas ou n\'est pas valide.' });
                 }
             }
-            updateFields.push('admin_client_siret = ?'); params.push(admin_client_siret || null);
+            updateFields.push('admin_client_siret = ?'); params.push(admin_client_siret || null); // SUGGESTION : Gère vide comme NULL
         }
 
+        // Hache le mot de passe si un nouveau est fourni.
         if (password) {
             const hashedPassword = await bcrypt.hash(password, 10);
             updateFields.push('password_hash = ?');
             params.push(hashedPassword);
         }
 
+        // Si aucun champ n'est à mettre à jour, renvoie une erreur.
         if (updateFields.length === 0) {
             return res.status(400).json({ message: 'Aucune donnée à mettre à jour.' });
         }
 
-        params.push(id); // Ajoute l'ID pour la clause WHERE
+        params.push(id); // L'ID pour la clause WHERE finale.
         const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
         const [result] = await pool.execute(query, params);
 
@@ -184,7 +242,7 @@ exports.deleteUserAdmin = async (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Utilisateur non trouvé.' });
         }
-        res.status(204).send(); // 204 No Content pour une suppression réussie
+        res.status(204).send(); // 204 No Content pour une suppression réussie.
     } catch (error) {
         console.error('Erreur lors de la suppression de l\'utilisateur (Super Admin):', error);
         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'utilisateur.' });
@@ -194,16 +252,18 @@ exports.deleteUserAdmin = async (req, res) => {
 // --- Méthodes pour Admin Client ---
 
 exports.getEmployeesByAdminClientId = async (req, res) => {
-    const adminClientId = req.user.id; // L'ID de l'admin_client connecté
-    const adminClientSiret = req.user.client_id; // Le SIRET de l'admin_client connecté (du JWT)
+    const adminClientId = req.user.id; // L'ID de l'admin_client connecté (utilisé ici pour le log, non pour la requête SQL directement)
+    const adminClientSiret = req.user.client_id; // Le SIRET de l'admin_client connecté, extrait du JWT.
 
+    // Vérification de sécurité : s'assurer que le SIRET est présent dans le token.
     if (!adminClientSiret) {
+        console.warn(`Tentative d'accès aux employés par admin_client_id ${adminClientId} sans SIRET dans le token.`);
         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
     }
 
     try {
         const pool = await getConnection();
-        // Récupère tous les utilisateurs dont le rôle est 'employer' et qui sont rattachés à ce SIRET admin_client
+        // Récupère tous les utilisateurs ayant le rôle 'employer' et rattachés à ce SIRET admin_client.
         const [employees] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret FROM users WHERE role = "employer" AND admin_client_siret = ?', [adminClientSiret]);
         res.json(employees);
     } catch (error) {
@@ -215,11 +275,13 @@ exports.getEmployeesByAdminClientId = async (req, res) => {
 exports.createEmployeeByAdminClient = async (req, res) => {
     const { nom_client, prenom_client, email, telephone, adresse, password } = req.body;
     const adminClientId = req.user.id;
-    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token, utilisé pour le rattachement.
 
+    // Validation des champs obligatoires pour la création d'un employé.
     if (!nom_client || !prenom_client || !email || !password) {
         return res.status(400).json({ message: 'Nom, prénom, email et mot de passe sont requis pour le nouvel employé.' });
     }
+    // Vérification de sécurité supplémentaire.
     if (!adminClientSiret) {
         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant pour créer l\'employé.' });
     }
@@ -227,14 +289,15 @@ exports.createEmployeeByAdminClient = async (req, res) => {
     try {
         const pool = await getConnection();
 
-        // Récupérer le nom de l'entreprise de l'admin client pour l'assigner à l'employé
+        // Récupérer le nom de l'entreprise de l'admin client pour l'assigner à l'employé.
         const [adminClientInfo] = await pool.execute('SELECT nom_entreprise FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
         if (adminClientInfo.length === 0) {
+            // Cela ne devrait pas arriver si le token est valide et l'admin client existe.
             return res.status(404).json({ message: 'Admin client non trouvé.' });
         }
         const nom_entreprise = adminClientInfo[0].nom_entreprise;
 
-        // Vérifier si l'email existe déjà
+        // Vérifier si l'email existe déjà pour un autre utilisateur.
         const [existingUser] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
         if (existingUser.length > 0) {
             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
@@ -242,9 +305,20 @@ exports.createEmployeeByAdminClient = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Insère le nouvel employé, en lui assignant le rôle 'employer' et le SIRET de l'admin client.
         const [result] = await pool.execute(
             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nom_entreprise, nom_client, prenom_client, email, telephone || null, adresse || null, hashedPassword, 'employer', adminClientSiret]
+            [
+                nom_entreprise,
+                nom_client,
+                prenom_client,
+                email,
+                telephone || null, // Gère les champs optionnels comme NULL
+                adresse || null,   // Gère les champs optionnels comme NULL
+                hashedPassword,
+                'employer',
+                adminClientSiret
+            ]
         );
 
         res.status(201).json({ message: 'Employé créé avec succès.', userId: result.insertId });
@@ -255,10 +329,11 @@ exports.createEmployeeByAdminClient = async (req, res) => {
 };
 
 exports.updateEmployeeByAdminClient = async (req, res) => {
-    const { id } = req.params; // ID de l'employé à mettre à jour
+    const { id } = req.params; // ID de l'employé à mettre à jour.
     const { nom_client, prenom_client, email, telephone, adresse, password } = req.body;
-    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token, utilisé pour l'autorisation.
 
+    // Vérification de sécurité.
     if (!adminClientSiret) {
         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
     }
@@ -266,7 +341,7 @@ exports.updateEmployeeByAdminClient = async (req, res) => {
     try {
         const pool = await getConnection();
 
-        // Vérifier que l'employé existe et est rattaché à cet admin_client
+        // Vérifier que l'employé existe ET qu'il est rattaché à cet admin_client pour éviter les modifications non autorisées.
         const [employee] = await pool.execute('SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', [id, adminClientSiret]);
         if (employee.length === 0) {
             return res.status(404).json({ message: 'Employé non trouvé ou non rattaché à votre établissement.' });
@@ -275,23 +350,26 @@ exports.updateEmployeeByAdminClient = async (req, res) => {
         let updateFields = [];
         let params = [];
 
+        // Ajoute les champs à mettre à jour si définis.
         if (nom_client !== undefined) { updateFields.push('nom_client = ?'); params.push(nom_client); }
         if (prenom_client !== undefined) { updateFields.push('prenom_client = ?'); params.push(prenom_client); }
         if (email !== undefined) { updateFields.push('email = ?'); params.push(email); }
-        if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone); }
-        if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse); }
+        if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone || null); } // SUGGESTION : Gère vide comme NULL
+        if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse || null); }       // SUGGESTION : Gère vide comme NULL
 
+        // Hache le mot de passe si un nouveau est fourni.
         if (password) {
             const hashedPassword = await bcrypt.hash(password, 10);
             updateFields.push('password_hash = ?');
             params.push(hashedPassword);
         }
 
+        // Si aucun champ n'est à mettre à jour, renvoie une erreur.
         if (updateFields.length === 0) {
             return res.status(400).json({ message: 'Aucune donnée à mettre à jour.' });
         }
 
-        params.push(id); // Ajoute l'ID pour la clause WHERE
+        params.push(id); // L'ID pour la clause WHERE finale.
         const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
         const [result] = await pool.execute(query, params);
 
@@ -306,9 +384,10 @@ exports.updateEmployeeByAdminClient = async (req, res) => {
 };
 
 exports.deleteEmployeeByAdminClient = async (req, res) => {
-    const { id } = req.params; // ID de l'employé à supprimer
-    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+    const { id } = req.params; // ID de l'employé à supprimer.
+    const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token, utilisé pour l'autorisation.
 
+    // Vérification de sécurité.
     if (!adminClientSiret) {
         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
     }
@@ -316,7 +395,7 @@ exports.deleteEmployeeByAdminClient = async (req, res) => {
     try {
         const pool = await getConnection();
 
-        // Vérifier que l'employé existe et est rattaché à cet admin_client
+        // Vérifier que l'employé existe ET qu'il est rattaché à cet admin_client avant de supprimer.
         const [employee] = await pool.execute('SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', [id, adminClientSiret]);
         if (employee.length === 0) {
             return res.status(404).json({ message: 'Employé non trouvé ou non rattaché à votre établissement.' });
@@ -326,12 +405,361 @@ exports.deleteEmployeeByAdminClient = async (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Employé non trouvé.' });
         }
-        res.status(204).send(); // 204 No Content pour une suppression réussie
+        res.status(204).send(); // 204 No Content pour une suppression réussie.
     } catch (error) {
         console.error('Erreur lors de la suppression de l\'employé par Admin Client:', error);
         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'employé.' });
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // backend/src/controllers/userController.js
+// const { getConnection } = require('../config/db');
+// const bcrypt = require('bcryptjs');
+
+// // --- Méthodes pour tous les utilisateurs (profil) ---
+
+// exports.getProfile = async (req, res) => {
+//     try {
+//         const pool = await getConnection();
+//         const [users] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret, created_at, updated_at FROM users WHERE id = ?', [req.user.id]);
+//         if (users.length === 0) {
+//             return res.status(404).json({ message: 'Profil utilisateur non trouvé.' });
+//         }
+//         res.json(users[0]);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération du profil:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération du profil.' });
+//     }
+// };
+
+// exports.updateProfile = async (req, res) => {
+//     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, password } = req.body;
+//     const userId = req.user.id; // ID de l'utilisateur du token
+
+//     try {
+//         const pool = await getConnection();
+//         let updateFields = { nom_entreprise, nom_client, prenom_client, email, telephone, adresse };
+//         let query = 'UPDATE users SET nom_entreprise = ?, nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+//         let params = [nom_entreprise, nom_client, prenom_client, email, telephone, adresse, userId];
+
+//         if (password) {
+//             const hashedPassword = await bcrypt.hash(password, 10);
+//             query = 'UPDATE users SET nom_entreprise = ?, nom_client = ?, prenom_client = ?, email = ?, telephone = ?, adresse = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+//             params = [nom_entreprise, nom_client, prenom_client, email, telephone, adresse, hashedPassword, userId];
+//         }
+
+//         const [result] = await pool.execute(query, params);
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé ou aucune modification effectuée.' });
+//         }
+//         res.json({ message: 'Profil mis à jour avec succès.' });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour du profil:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du profil.' });
+//     }
+// };
+
+// // --- Méthodes pour Super Admin ---
+
+// exports.getAllUsersAdmin = async (req, res) => {
+//     try {
+//         const pool = await getConnection();
+//         const [users] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret, created_at, updated_at FROM users');
+//         res.json(users);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération de tous les utilisateurs (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des utilisateurs.' });
+//     }
+// };
+
+// exports.createUserAdmin = async (req, res) => {
+//     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password, role, admin_client_siret } = req.body;
+
+//     if (!nom_entreprise || !nom_client || !prenom_client || !email || !password || !role) {
+//         return res.status(400).json({ message: 'Tous les champs obligatoires sont requis.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         const [existingUser] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+//         if (existingUser.length > 0) {
+//             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
+//         }
+
+//         if (role === 'admin_client' && (!siret || siret.length !== 14)) {
+//             return res.status(400).json({ message: 'Le SIRET est obligatoire et doit contenir 14 chiffres pour un rôle admin_client.' });
+//         }
+//         if (role === 'admin_client' && siret) {
+//             const [existingSiret] = await pool.execute('SELECT id FROM users WHERE siret = ?', [siret]);
+//             if (existingSiret.length > 0) {
+//                 return res.status(409).json({ message: 'Un autre admin_client utilise déjà ce SIRET.' });
+//             }
+//         }
+//         if (role === 'employer' && (!admin_client_siret || admin_client_siret.length !== 14)) {
+//             return res.status(400).json({ message: 'Le SIRET de l\'admin client est obligatoire et doit contenir 14 chiffres pour un rôle employer.' });
+//         }
+//         if (role === 'employer' && admin_client_siret) {
+//             const [adminClientExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [admin_client_siret]);
+//             if (adminClientExists.length === 0) {
+//                 return res.status(400).json({ message: 'Le SIRET de l\'admin client spécifié n\'existe pas ou n\'est pas valide.' });
+//             }
+//         }
+
+//         const hashedPassword = await bcrypt.hash(password, 10);
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+//             [nom_entreprise, nom_client, prenom_client, email, telephone || null, adresse || null, siret || null, hashedPassword, role, admin_client_siret || null]
+//         );
+
+//         res.status(201).json({ message: 'Utilisateur créé avec succès.', userId: result.insertId });
+//     } catch (error) {
+//         console.error('Erreur lors de la création de l\'utilisateur (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la création de l\'utilisateur.' });
+//     }
+// };
+
+// exports.updateUserAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     const { nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, password, role, admin_client_siret } = req.body;
+
+//     try {
+//         const pool = await getConnection();
+//         const [userToUpdate] = await pool.execute('SELECT role, siret FROM users WHERE id = ?', [id]);
+//         if (userToUpdate.length === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+//         }
+
+//         let updateFields = [];
+//         let params = [];
+
+//         if (nom_entreprise !== undefined) { updateFields.push('nom_entreprise = ?'); params.push(nom_entreprise); }
+//         if (nom_client !== undefined) { updateFields.push('nom_client = ?'); params.push(nom_client); }
+//         if (prenom_client !== undefined) { updateFields.push('prenom_client = ?'); params.push(prenom_client); }
+//         if (email !== undefined) { updateFields.push('email = ?'); params.push(email); }
+//         if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone); }
+//         if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse); }
+//         if (role !== undefined) { updateFields.push('role = ?'); params.push(role); }
+//         if (siret !== undefined) {
+//             if (role === 'admin_client' && siret && siret.length !== 14) {
+//                 return res.status(400).json({ message: 'Le SIRET doit contenir 14 chiffres pour un rôle admin_client.' });
+//             }
+//             if (role === 'admin_client' && siret) {
+//                 const [existingSiret] = await pool.execute('SELECT id FROM users WHERE siret = ? AND id != ?', [siret, id]);
+//                 if (existingSiret.length > 0) {
+//                     return res.status(409).json({ message: 'Un autre admin_client utilise déjà ce SIRET.' });
+//                 }
+//             }
+//             updateFields.push('siret = ?'); params.push(siret || null);
+//         }
+//         if (admin_client_siret !== undefined) {
+//             if (role === 'employer' && admin_client_siret && admin_client_siret.length !== 14) {
+//                 return res.status(400).json({ message: 'Le SIRET de l\'admin client doit contenir 14 chiffres pour un rôle employer.' });
+//             }
+//             if (role === 'employer' && admin_client_siret) {
+//                 const [adminClientExists] = await pool.execute('SELECT id FROM users WHERE siret = ? AND role = "admin_client"', [admin_client_siret]);
+//                 if (adminClientExists.length === 0) {
+//                     return res.status(400).json({ message: 'Le SIRET de l\'admin client spécifié n\'existe pas ou n\'est pas valide.' });
+//                 }
+//             }
+//             updateFields.push('admin_client_siret = ?'); params.push(admin_client_siret || null);
+//         }
+
+//         if (password) {
+//             const hashedPassword = await bcrypt.hash(password, 10);
+//             updateFields.push('password_hash = ?');
+//             params.push(hashedPassword);
+//         }
+
+//         if (updateFields.length === 0) {
+//             return res.status(400).json({ message: 'Aucune donnée à mettre à jour.' });
+//         }
+
+//         params.push(id); // Ajoute l'ID pour la clause WHERE
+//         const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+//         const [result] = await pool.execute(query, params);
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé ou aucune modification effectuée.' });
+//         }
+//         res.json({ message: 'Utilisateur mis à jour avec succès.' });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour de l\'utilisateur (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de l\'utilisateur.' });
+//     }
+// };
+
+// exports.deleteUserAdmin = async (req, res) => {
+//     const { id } = req.params;
+//     try {
+//         const pool = await getConnection();
+//         const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+//         }
+//         res.status(204).send(); // 204 No Content pour une suppression réussie
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression de l\'utilisateur (Super Admin):', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'utilisateur.' });
+//     }
+// };
+
+// // --- Méthodes pour Admin Client ---
+
+// exports.getEmployeesByAdminClientId = async (req, res) => {
+//     const adminClientId = req.user.id; // L'ID de l'admin_client connecté
+//     const adminClientSiret = req.user.client_id; // Le SIRET de l'admin_client connecté (du JWT)
+
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+//         // Récupère tous les utilisateurs dont le rôle est 'employer' et qui sont rattachés à ce SIRET admin_client
+//         const [employees] = await pool.execute('SELECT id, nom_entreprise, nom_client, prenom_client, email, telephone, adresse, siret, role, admin_client_siret FROM users WHERE role = "employer" AND admin_client_siret = ?', [adminClientSiret]);
+//         res.json(employees);
+//     } catch (error) {
+//         console.error('Erreur lors de la récupération des employés par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la récupération des employés.' });
+//     }
+// };
+
+// exports.createEmployeeByAdminClient = async (req, res) => {
+//     const { nom_client, prenom_client, email, telephone, adresse, password } = req.body;
+//     const adminClientId = req.user.id;
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!nom_client || !prenom_client || !email || !password) {
+//         return res.status(400).json({ message: 'Nom, prénom, email et mot de passe sont requis pour le nouvel employé.' });
+//     }
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant pour créer l\'employé.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Récupérer le nom de l'entreprise de l'admin client pour l'assigner à l'employé
+//         const [adminClientInfo] = await pool.execute('SELECT nom_entreprise FROM users WHERE id = ? AND role = "admin_client"', [adminClientId]);
+//         if (adminClientInfo.length === 0) {
+//             return res.status(404).json({ message: 'Admin client non trouvé.' });
+//         }
+//         const nom_entreprise = adminClientInfo[0].nom_entreprise;
+
+//         // Vérifier si l'email existe déjà
+//         const [existingUser] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+//         if (existingUser.length > 0) {
+//             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
+//         }
+
+//         const hashedPassword = await bcrypt.hash(password, 10);
+
+//         const [result] = await pool.execute(
+//             'INSERT INTO users (nom_entreprise, nom_client, prenom_client, email, telephone, adresse, password_hash, role, admin_client_siret) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+//             [nom_entreprise, nom_client, prenom_client, email, telephone || null, adresse || null, hashedPassword, 'employer', adminClientSiret]
+//         );
+
+//         res.status(201).json({ message: 'Employé créé avec succès.', userId: result.insertId });
+//     } catch (error) {
+//         console.error('Erreur lors de la création de l\'employé par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la création de l\'employé.' });
+//     }
+// };
+
+// exports.updateEmployeeByAdminClient = async (req, res) => {
+//     const { id } = req.params; // ID de l'employé à mettre à jour
+//     const { nom_client, prenom_client, email, telephone, adresse, password } = req.body;
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Vérifier que l'employé existe et est rattaché à cet admin_client
+//         const [employee] = await pool.execute('SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', [id, adminClientSiret]);
+//         if (employee.length === 0) {
+//             return res.status(404).json({ message: 'Employé non trouvé ou non rattaché à votre établissement.' });
+//         }
+
+//         let updateFields = [];
+//         let params = [];
+
+//         if (nom_client !== undefined) { updateFields.push('nom_client = ?'); params.push(nom_client); }
+//         if (prenom_client !== undefined) { updateFields.push('prenom_client = ?'); params.push(prenom_client); }
+//         if (email !== undefined) { updateFields.push('email = ?'); params.push(email); }
+//         if (telephone !== undefined) { updateFields.push('telephone = ?'); params.push(telephone); }
+//         if (adresse !== undefined) { updateFields.push('adresse = ?'); params.push(adresse); }
+
+//         if (password) {
+//             const hashedPassword = await bcrypt.hash(password, 10);
+//             updateFields.push('password_hash = ?');
+//             params.push(hashedPassword);
+//         }
+
+//         if (updateFields.length === 0) {
+//             return res.status(400).json({ message: 'Aucune donnée à mettre à jour.' });
+//         }
+
+//         params.push(id); // Ajoute l'ID pour la clause WHERE
+//         const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+//         const [result] = await pool.execute(query, params);
+
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Employé non trouvé ou aucune modification effectuée.' });
+//         }
+//         res.json({ message: 'Employé mis à jour avec succès.' });
+//     } catch (error) {
+//         console.error('Erreur lors de la mise à jour de l\'employé par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de l\'employé.' });
+//     }
+// };
+
+// exports.deleteEmployeeByAdminClient = async (req, res) => {
+//     const { id } = req.params; // ID de l'employé à supprimer
+//     const adminClientSiret = req.user.client_id; // SIRET de l'admin_client du token
+
+//     if (!adminClientSiret) {
+//         return res.status(400).json({ message: 'SIRET de l\'administrateur client manquant dans le token.' });
+//     }
+
+//     try {
+//         const pool = await getConnection();
+
+//         // Vérifier que l'employé existe et est rattaché à cet admin_client
+//         const [employee] = await pool.execute('SELECT id FROM users WHERE id = ? AND role = "employer" AND admin_client_siret = ?', [id, adminClientSiret]);
+//         if (employee.length === 0) {
+//             return res.status(404).json({ message: 'Employé non trouvé ou non rattaché à votre établissement.' });
+//         }
+
+//         const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+//         if (result.affectedRows === 0) {
+//             return res.status(404).json({ message: 'Employé non trouvé.' });
+//         }
+//         res.status(204).send(); // 204 No Content pour une suppression réussie
+//     } catch (error) {
+//         console.error('Erreur lors de la suppression de l\'employé par Admin Client:', error);
+//         res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'employé.' });
+//     }
+// };
 
 
 

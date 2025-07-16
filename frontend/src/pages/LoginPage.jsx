@@ -1,8 +1,8 @@
 // frontend/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import { useAuth } from '../context/AuthContext'; // Import useAuth
-import './LoginPage.css';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import './LoginPage.css'; // Assurez-vous que ce chemin est correct
 
 function LoginPage({ onCancel }) {
     const [email, setEmail] = useState('');
@@ -84,6 +84,7 @@ function LoginPage({ onCancel }) {
 }
 
 export default LoginPage;
+
 
 
 

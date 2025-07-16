@@ -1,101 +1,83 @@
 // frontend/src/App.jsx
-import React, { useState, useEffect } from 'react';
+import React from 'react'; // useState et useEffect ne sont plus nécessaires s'ils sont supprimés du corps de App
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
-// ... (vos imports de pages et composants)
-import LoginPage from './pages/LoginPage'; // Assurez-vous d'importer toutes les pages nécessaires
+// VOS IMPORTS DE PAGES ET COMPOSANTS EXISTANTS
+import LoginPage from './pages/LoginPage';
 import AdminClientDashboardPage from './pages/AdminClientDashboardPage';
 import EmployeeDashboardPage from './pages/EmployerDashboardPage';
-import SuperAdminDashboardPage from './pages/AdminDashboardPage';
+import SuperAdminDashboardPage from './pages/AdminDashboardPage'; // Votre "AdminDashboardPage" est pour le Super Admin
 import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
 import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
 import PrivateRoute from './components/PrivateRoute';
-import HomePage from './components/HomePage'; // Supposons que HomePage est votre composant de page d'accueil
-// ...
+import HomePage from './components/HomePage'; // Votre HomePage
+
+import './App.css'; // Assurez-vous que cette ligne est présente
 
 import { useAuth } from './context/AuthContext';
-import './App.css'; 
 
 function App() {
     const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [showLoginForm, setShowLoginForm] = useState(false);
-    const [showRegisterForm, setShowRegisterForm] = useState(false);
+    // CES ÉTATS SONT SUPPRIMÉS : Les routes géreront l'affichage des formulaires.
+    // const [showLoginForm, setShowLoginForm] = useState(false);
+    // const [showRegisterForm, setShowRegisterForm] = useState(false);
 
-    // Ce useEffect gère la redirection si l'utilisateur arrive sur une page publique
-    // alors qu'il est déjà authentifié.
+    // CE useEffect EST SUPPRIMÉ COMPLETEMENT : Les <Navigate> dans les Routes gèrent déjà cela.
+    /*
     useEffect(() => {
-        if (!authLoading && isAuthenticated) {
-            // Liste des chemins publics ou de pré-connexion
-            const publicPaths = ['/', '/login', '/register-admin-client'];
-
-            // Vérifie si l'utilisateur est actuellement sur un chemin public
-            const isCurrentlyOnPublicPath = publicPaths.includes(location.pathname);
-
-            // Redirige si l'utilisateur est sur un chemin public ET qu'il n'est pas déjà sur un tableau de bord.
-            // La dernière partie de la condition est importante pour éviter de rediriger depuis un tableau de bord vers lui-même.
-            if (isCurrentlyOnPublicPath) {
-                switch (user?.role) {
-                    case 'admin_client':
-                        if (location.pathname !== '/admin-client-dashboard') navigate('/admin-client-dashboard', { replace: true });
-                        break;
-                    case 'employer':
-                        if (location.pathname !== '/employee-dashboard') navigate('/employee-dashboard', { replace: true });
-                        break;
-                    case 'super_admin':
-                        if (location.pathname !== '/super-admin-dashboard') navigate('/super-admin-dashboard', { replace: true });
-                        break;
-                    default:
-                        // Si le rôle n'est pas reconnu, on peut le laisser sur la page actuelle ou rediriger vers une page générique.
-                        // Pour éviter une boucle, ne naviguez pas vers '/' ici si c'est déjà la page.
-                        if (location.pathname !== '/') navigate('/', { replace: true });
-                        console.warn("Authenticated user with unrecognized role tried to access a public path.");
-                        break;
-                }
-            }
-        }
-    }, [isAuthenticated, user, authLoading, navigate, location.pathname]); // location.pathname est nécessaire pour redéclencher quand l'URL change
+        // ... (code supprimé)
+    }, [isAuthenticated, user, authLoading, navigate, location.pathname]);
+    */
 
     const handleAdminClientRegistered = (newAdminClient) => {
-        alert('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.');
+        // alert('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.'); // Utilisez une modale personnalisée au lieu d'alert
         console.log('Nouvel Admin Client enregistré:', newAdminClient);
-        setShowRegisterForm(false);
-        setShowLoginForm(true);
-        // Pas de navigate ici, la logique de LoginPage ou RegisterAdminClientPage s'en chargera
+        // Redirige directement vers la page de connexion après l'inscription réussie
+        navigate('/login', { replace: true });
     };
 
     const handleLogout = () => {
-        logout();
+        logout(); // Appelle la fonction logout du contexte (qui nettoie le localStorage)
         navigate('/', { replace: true }); // Redirige vers la page d'accueil après la déconnexion
     };
 
+    // CES FONCTIONS SONT SIMPLIFIÉES pour simplement naviguer
     const openLoginForm = () => {
-        setShowLoginForm(true);
-        setShowRegisterForm(false);
         navigate('/login', { replace: true });
     };
 
     const closeLoginForm = () => {
-        setShowLoginForm(false);
-        if (location.pathname === '/login') navigate('/', { replace: true });
+        navigate('/', { replace: true }); // Redirige vers la page d'accueil si on ferme le formulaire de connexion
     };
 
     const openRegisterForm = () => {
-        setShowRegisterForm(true);
-        setShowLoginForm(false);
         navigate('/register-admin-client', { replace: true });
     };
 
     const closeRegisterForm = () => {
-        setShowRegisterForm(false);
-        if (location.pathname === '/register-admin-client') navigate('/', { replace: true });
+        navigate('/', { replace: true }); // Redirige vers la page d'accueil si on ferme le formulaire d'inscription
     };
 
     if (authLoading) {
         return <div className="loading-screen">Chargement de l'authentification...</div>;
     }
+
+    // Fonction utilitaire pour déterminer le chemin du tableau de bord par rôle
+    const getDashboardPath = (role) => {
+        switch (role) {
+            case 'admin_client':
+                return '/admin-client-dashboard';
+            case 'employer':
+                return '/employee-dashboard';
+            case 'super_admin':
+                return '/super-admin-dashboard';
+            default:
+                return '/'; // Fallback pour les rôles inconnus ou non définis
+        }
+    };
 
     return (
         <div className="App">
@@ -129,37 +111,47 @@ function App() {
 
             <main>
                 <Routes>
+                    {/* Route pour la page d'accueil */}
                     <Route path="/" element={
-                        !isAuthenticated ? (
-                            <HomePage showLoginForm={showLoginForm} showRegisterForm={showRegisterForm} onAdminClientRegistered={handleAdminClientRegistered} onCancelLogin={closeLoginForm} onCancelRegister={closeRegisterForm} />
+                        isAuthenticated ? (
+                            // Si authentifié, redirige vers le dashboard approprié
+                            <Navigate to={getDashboardPath(user?.role)} replace />
                         ) : (
-                            // Si déjà authentifié et sur la page d'accueil, on peut rediriger vers le dashboard
-                            // ou simplement afficher un message de bienvenue.
-                            // La redirection principale est gérée dans le useEffect ou après login.
-                            <HomePage /> // Peut afficher un message "Vous êtes connecté"
+                            // Si non authentifié, affiche la HomePage statique
+                            <HomePage /> // HomePage ne reçoit plus de props de formulaire ici
                         )
                     } />
+
+                    {/* Route pour la page de connexion */}
                     <Route path="/login" element={
-                        !isAuthenticated ? <LoginPage onCancel={closeLoginForm} /> : <Navigate to={
-                            user?.role === 'admin_client' ? '/admin-client-dashboard' :
-                            user?.role === 'employer' ? '/employee-dashboard' :
-                            user?.role === 'super_admin' ? '/super-admin-dashboard' :
-                            '/'
-                        } replace />
-                    } />
-                    <Route path="/register-admin-client" element={
-                        !isAuthenticated ? <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} /> : <Navigate to={
-                            user?.role === 'admin_client' ? '/admin-client-dashboard' :
-                            user?.role === 'employer' ? '/employee-dashboard' :
-                            user?.role === 'super_admin' ? '/super-admin-dashboard' :
-                            '/'
-                        } replace />
+                        isAuthenticated ? (
+                            // Si authentifié, redirige vers le dashboard
+                            <Navigate to={getDashboardPath(user?.role)} replace />
+                        ) : (
+                            // Si non authentifié, affiche le LoginPage
+                            <LoginPage onCancel={closeLoginForm} />
+                        )
                     } />
 
+                    {/* Route pour la page d'enregistrement */}
+                    <Route path="/register-admin-client" element={
+                        isAuthenticated ? (
+                            // Si authentifié, redirige vers le dashboard
+                            <Navigate to={getDashboardPath(user?.role)} replace />
+                        ) : (
+                            // Si non authentifié, affiche le RegisterAdminClientPage
+                            <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} />
+                        )
+                    } />
+
+                    {/* Routes protégées par rôle */}
                     <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
                     <Route path="/employee-dashboard" element={<PrivateRoute role="employer"><EmployeeDashboardPage /></PrivateRoute>} />
                     <Route path="/super-admin-dashboard" element={<PrivateRoute role="super_admin"><SuperAdminDashboardPage /></PrivateRoute>} />
                     <Route path="/temperature-records" element={<PrivateRoute roles={['employer', 'admin_client', 'super_admin']}><TemperatureRecordsPage /></PrivateRoute>} />
+
+                    {/* Route pour les chemins non trouvés - Optionnel */}
+                    <Route path="*" element={<div>404 - Page non trouvée</div>} />
                 </Routes>
             </main>
         </div>
@@ -167,6 +159,386 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // frontend/src/App.jsx
+// import React, { useState, useEffect } from 'react';
+// import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
+
+// // ... (vos imports de pages et composants)
+// import LoginPage from './pages/LoginPage';
+// import AdminClientDashboardPage from './pages/AdminClientDashboardPage';
+// import EmployeeDashboardPage from './pages/EmployerDashboardPage';
+// import SuperAdminDashboardPage from './pages/AdminDashboardPage';
+// import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
+// import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
+// import PrivateRoute from './components/PrivateRoute';
+// import HomePage from './components/HomePage';
+
+// import './App.css'; // Assurez-vous que cette ligne est présente
+
+// import { useAuth } from './context/AuthContext';
+
+// function App() {
+//     const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
+//     const navigate = useNavigate();
+//     const location = useLocation();
+
+//     const [showLoginForm, setShowLoginForm] = useState(false);
+//     const [showRegisterForm, setShowRegisterForm] = useState(false);
+
+//     // Simplification du useEffect pour gérer la redirection depuis la page d'accueil principale
+//     useEffect(() => {
+//         if (!authLoading && isAuthenticated && location.pathname === '/') {
+//             let targetPath = '/';
+//             switch (user?.role) {
+//                 case 'admin_client':
+//                     targetPath = '/admin-client-dashboard';
+//                     break;
+//                 case 'employer':
+//                     targetPath = '/employee-dashboard';
+//                     break;
+//                 case 'super_admin':
+//                     targetPath = '/super-admin-dashboard';
+//                     break;
+//                 default:
+//                     // Si le rôle n'est pas reconnu, on peut le laisser sur la page d'accueil ou gérer une page d'erreur
+//                     console.warn("Authenticated user with unrecognized role on home page.");
+//                     return; // Ne pas rediriger si le rôle est inconnu et déjà sur '/'
+//             }
+//             // Redirige uniquement si l'utilisateur est sur la page d'accueil et le chemin cible est différent
+//             if (targetPath !== '/' && location.pathname !== targetPath) {
+//                 navigate(targetPath, { replace: true });
+//             }
+//         }
+//     }, [isAuthenticated, user, authLoading, navigate, location.pathname]);
+
+
+//     const handleAdminClientRegistered = (newAdminClient) => {
+//         alert('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.');
+//         console.log('Nouvel Admin Client enregistré:', newAdminClient);
+//         setShowRegisterForm(false);
+//         setShowLoginForm(true);
+//         // Note: La navigation est gérée par les Routes ou par LoginPage/RegisterAdminClientPage
+//         // Pas besoin de navigate ici directement pour la redirection vers le dashboard après inscription.
+//         // On redirige vers /login pour afficher le formulaire de connexion.
+//         navigate('/login', { replace: true });
+//     };
+
+//     const handleLogout = () => {
+//         logout();
+//         navigate('/', { replace: true }); // Redirige vers la page d'accueil après la déconnexion
+//     };
+
+//     const openLoginForm = () => {
+//         setShowLoginForm(true);
+//         setShowRegisterForm(false);
+//         navigate('/login', { replace: true }); // Navigue vers /login pour que la route gère l'affichage
+//     };
+
+//     const closeLoginForm = () => {
+//         setShowLoginForm(false);
+//         // Ne navigue que si l'URL est actuellement /login
+//         if (location.pathname === '/login') navigate('/', { replace: true });
+//     };
+
+//     const openRegisterForm = () => {
+//         setShowRegisterForm(true);
+//         setShowLoginForm(false);
+//         navigate('/register-admin-client', { replace: true }); // Navigue vers /register-admin-client
+//     };
+
+//     const closeRegisterForm = () => {
+//         setShowRegisterForm(false);
+//         // Ne navigue que si l'URL est actuellement /register-admin-client
+//         if (location.pathname === '/register-admin-client') navigate('/', { replace: true });
+//     };
+
+//     if (authLoading) {
+//         return <div className="loading-screen">Chargement de l'authentification...</div>;
+//     }
+
+//     return (
+//         <div className="App">
+//             <header className="App-header">
+//                 <div className="logo">
+//                     <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+//                 </div>
+//                 <nav className="main-nav">
+//                     {!isAuthenticated ? (
+//                         <div className="auth-buttons">
+//                             <button onClick={openLoginForm} className="nav-button">Connexion</button>
+//                             <button onClick={openRegisterForm} className="nav-button">Enregistrer un nouveau compte</button>
+//                         </div>
+//                     ) : (
+//                         <div className="dashboard-nav">
+//                             {user?.role === 'admin_client' && (
+//                                 <Link to="/admin-client-dashboard" className="nav-link">Tableau de bord Admin Client</Link>
+//                             )}
+//                             {user?.role === 'employer' && (
+//                                 <Link to="/employee-dashboard" className="nav-link">Tableau de bord Employé</Link>
+//                             )}
+//                             {user?.role === 'super_admin' && (
+//                                 <Link to="/super-admin-dashboard" className="nav-link">Tableau de bord Super Admin</Link>
+//                             )}
+//                             {/* Assurez-vous que cette route est accessible par les rôles appropriés */}
+//                             <Link to="/temperature-records" className="nav-link">Relevés de Température</Link>
+//                             <button onClick={handleLogout} className="logout-button">Déconnexion</button>
+//                         </div>
+//                     )}
+//                 </nav>
+//             </header>
+
+//             <main>
+//                 <Routes>
+//                     {/* Route pour la page d'accueil */}
+//                     <Route path="/" element={
+//                         // Si authentifié, redirige vers le dashboard approprié
+//                         isAuthenticated ? (
+//                             <Navigate to={
+//                                 user?.role === 'admin_client' ? '/admin-client-dashboard' :
+//                                 user?.role === 'employer' ? '/employee-dashboard' :
+//                                 user?.role === 'super_admin' ? '/super-admin-dashboard' :
+//                                 '/' // Fallback si le rôle est inconnu
+//                             } replace />
+//                         ) : (
+//                             // Si non authentifié, affiche la HomePage (qui peut contenir les formulaires)
+//                             <HomePage showLoginForm={showLoginForm} showRegisterForm={showRegisterForm} onAdminClientRegistered={handleAdminClientRegistered} onCancelLogin={closeLoginForm} onCancelRegister={closeRegisterForm} />
+//                         )
+//                     } />
+
+//                     {/* Routes pour les formulaires de connexion et d'inscription */}
+//                     <Route path="/login" element={
+//                         // Si authentifié, redirige vers le dashboard
+//                         isAuthenticated ? (
+//                             <Navigate to={
+//                                 user?.role === 'admin_client' ? '/admin-client-dashboard' :
+//                                 user?.role === 'employer' ? '/employee-dashboard' :
+//                                 user?.role === 'super_admin' ? '/super-admin-dashboard' :
+//                                 '/'
+//                             } replace />
+//                         ) : (
+//                             // Si non authentifié, affiche le LoginPage
+//                             <LoginPage onCancel={closeLoginForm} />
+//                         )
+//                     } />
+//                     <Route path="/register-admin-client" element={
+//                         isAuthenticated ? (
+//                             <Navigate to={
+//                                 user?.role === 'admin_client' ? '/admin-client-dashboard' :
+//                                 user?.role === 'employer' ? '/employee-dashboard' :
+//                                 user?.role === 'super_admin' ? '/super-admin-dashboard' :
+//                                 '/'
+//                             } replace />
+//                         ) : (
+//                             <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} />
+//                         )
+//                     } />
+
+//                     {/* Routes protégées par rôle */}
+//                     <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
+//                     <Route path="/employee-dashboard" element={<PrivateRoute role="employer"><EmployeeDashboardPage /></PrivateRoute>} />
+//                     <Route path="/super-admin-dashboard" element={<PrivateRoute role="super_admin"><SuperAdminDashboardPage /></PrivateRoute>} />
+//                     <Route path="/temperature-records" element={<PrivateRoute roles={['employer', 'admin_client', 'super_admin']}><TemperatureRecordsPage /></PrivateRoute>} />
+
+//                     {/* Route pour les chemins non trouvés - Optionnel */}
+//                     <Route path="*" element={<div>404 - Page non trouvée</div>} />
+//                 </Routes>
+//             </main>
+//         </div>
+//     );
+// }
+
+// export default App;
+
+
+
+
+
+
+
+// // frontend/src/App.jsx
+// import React, { useState, useEffect } from 'react';
+// import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
+
+// // ... (vos imports de pages et composants)
+// import LoginPage from './pages/LoginPage'; // Assurez-vous d'importer toutes les pages nécessaires
+// import AdminClientDashboardPage from './pages/AdminClientDashboardPage';
+// import EmployeeDashboardPage from './pages/EmployerDashboardPage';
+// import SuperAdminDashboardPage from './pages/AdminDashboardPage';
+// import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
+// import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
+// import PrivateRoute from './components/PrivateRoute';
+// import HomePage from './components/HomePage'; // Supposons que HomePage est votre composant de page d'accueil
+// // ...
+
+// import { useAuth } from './context/AuthContext';
+// import './App.css'; 
+
+// function App() {
+//     const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
+//     const navigate = useNavigate();
+//     const location = useLocation();
+
+//     const [showLoginForm, setShowLoginForm] = useState(false);
+//     const [showRegisterForm, setShowRegisterForm] = useState(false);
+
+//     // Ce useEffect gère la redirection si l'utilisateur arrive sur une page publique
+//     // alors qu'il est déjà authentifié.
+//     useEffect(() => {
+//         if (!authLoading && isAuthenticated) {
+//             // Liste des chemins publics ou de pré-connexion
+//             const publicPaths = ['/', '/login', '/register-admin-client'];
+
+//             // Vérifie si l'utilisateur est actuellement sur un chemin public
+//             const isCurrentlyOnPublicPath = publicPaths.includes(location.pathname);
+
+//             // Redirige si l'utilisateur est sur un chemin public ET qu'il n'est pas déjà sur un tableau de bord.
+//             // La dernière partie de la condition est importante pour éviter de rediriger depuis un tableau de bord vers lui-même.
+//             if (isCurrentlyOnPublicPath) {
+//                 switch (user?.role) {
+//                     case 'admin_client':
+//                         if (location.pathname !== '/admin-client-dashboard') navigate('/admin-client-dashboard', { replace: true });
+//                         break;
+//                     case 'employer':
+//                         if (location.pathname !== '/employee-dashboard') navigate('/employee-dashboard', { replace: true });
+//                         break;
+//                     case 'super_admin':
+//                         if (location.pathname !== '/super-admin-dashboard') navigate('/super-admin-dashboard', { replace: true });
+//                         break;
+//                     default:
+//                         // Si le rôle n'est pas reconnu, on peut le laisser sur la page actuelle ou rediriger vers une page générique.
+//                         // Pour éviter une boucle, ne naviguez pas vers '/' ici si c'est déjà la page.
+//                         if (location.pathname !== '/') navigate('/', { replace: true });
+//                         console.warn("Authenticated user with unrecognized role tried to access a public path.");
+//                         break;
+//                 }
+//             }
+//         }
+//     }, [isAuthenticated, user, authLoading, navigate, location.pathname]); // location.pathname est nécessaire pour redéclencher quand l'URL change
+
+//     const handleAdminClientRegistered = (newAdminClient) => {
+//         alert('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.');
+//         console.log('Nouvel Admin Client enregistré:', newAdminClient);
+//         setShowRegisterForm(false);
+//         setShowLoginForm(true);
+//         // Pas de navigate ici, la logique de LoginPage ou RegisterAdminClientPage s'en chargera
+//     };
+
+//     const handleLogout = () => {
+//         logout();
+//         navigate('/', { replace: true }); // Redirige vers la page d'accueil après la déconnexion
+//     };
+
+//     const openLoginForm = () => {
+//         setShowLoginForm(true);
+//         setShowRegisterForm(false);
+//         navigate('/login', { replace: true });
+//     };
+
+//     const closeLoginForm = () => {
+//         setShowLoginForm(false);
+//         if (location.pathname === '/login') navigate('/', { replace: true });
+//     };
+
+//     const openRegisterForm = () => {
+//         setShowRegisterForm(true);
+//         setShowLoginForm(false);
+//         navigate('/register-admin-client', { replace: true });
+//     };
+
+//     const closeRegisterForm = () => {
+//         setShowRegisterForm(false);
+//         if (location.pathname === '/register-admin-client') navigate('/', { replace: true });
+//     };
+
+//     if (authLoading) {
+//         return <div className="loading-screen">Chargement de l'authentification...</div>;
+//     }
+
+//     return (
+//         <div className="App">
+//             <header className="App-header">
+//                 <div className="logo">
+//                     <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+//                 </div>
+//                 <nav className="main-nav">
+//                     {!isAuthenticated ? (
+//                         <div className="auth-buttons">
+//                             <button onClick={openLoginForm} className="nav-button">Connexion</button>
+//                             <button onClick={openRegisterForm} className="nav-button">Enregistrer un nouveau compte</button>
+//                         </div>
+//                     ) : (
+//                         <div className="dashboard-nav">
+//                             {user?.role === 'admin_client' && (
+//                                 <Link to="/admin-client-dashboard" className="nav-link">Tableau de bord Admin Client</Link>
+//                             )}
+//                             {user?.role === 'employer' && (
+//                                 <Link to="/employee-dashboard" className="nav-link">Tableau de bord Employé</Link>
+//                             )}
+//                             {user?.role === 'super_admin' && (
+//                                 <Link to="/super-admin-dashboard" className="nav-link">Tableau de bord Super Admin</Link>
+//                             )}
+//                             <Link to="/temperature-records" className="nav-link">Relevés de Température</Link>
+//                             <button onClick={handleLogout} className="logout-button">Déconnexion</button>
+//                         </div>
+//                     )}
+//                 </nav>
+//             </header>
+
+//             <main>
+//                 <Routes>
+//                     <Route path="/" element={
+//                         !isAuthenticated ? (
+//                             <HomePage showLoginForm={showLoginForm} showRegisterForm={showRegisterForm} onAdminClientRegistered={handleAdminClientRegistered} onCancelLogin={closeLoginForm} onCancelRegister={closeRegisterForm} />
+//                         ) : (
+//                             // Si déjà authentifié et sur la page d'accueil, on peut rediriger vers le dashboard
+//                             // ou simplement afficher un message de bienvenue.
+//                             // La redirection principale est gérée dans le useEffect ou après login.
+//                             <HomePage /> // Peut afficher un message "Vous êtes connecté"
+//                         )
+//                     } />
+//                     <Route path="/login" element={
+//                         !isAuthenticated ? <LoginPage onCancel={closeLoginForm} /> : <Navigate to={
+//                             user?.role === 'admin_client' ? '/admin-client-dashboard' :
+//                             user?.role === 'employer' ? '/employee-dashboard' :
+//                             user?.role === 'super_admin' ? '/super-admin-dashboard' :
+//                             '/'
+//                         } replace />
+//                     } />
+//                     <Route path="/register-admin-client" element={
+//                         !isAuthenticated ? <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} /> : <Navigate to={
+//                             user?.role === 'admin_client' ? '/admin-client-dashboard' :
+//                             user?.role === 'employer' ? '/employee-dashboard' :
+//                             user?.role === 'super_admin' ? '/super-admin-dashboard' :
+//                             '/'
+//                         } replace />
+//                     } />
+
+//                     <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
+//                     <Route path="/employee-dashboard" element={<PrivateRoute role="employer"><EmployeeDashboardPage /></PrivateRoute>} />
+//                     <Route path="/super-admin-dashboard" element={<PrivateRoute role="super_admin"><SuperAdminDashboardPage /></PrivateRoute>} />
+//                     <Route path="/temperature-records" element={<PrivateRoute roles={['employer', 'admin_client', 'super_admin']}><TemperatureRecordsPage /></PrivateRoute>} />
+//                 </Routes>
+//             </main>
+//         </div>
+//     );
+// }
+
+// export default App;
 
 
 
