@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance'; // Assurez-vous que le chemin est correct
 import { useAuth } from '../../context/AuthContext'; // Pour récupérer le SIRET de l'utilisateur
+import './AddTraceabilityForm.css';
 
 const AddTraceabilityForm = ({ onRecordAdded }) => {
   const { user } = useAuth(); // Accéder aux informations de l'utilisateur, y compris le SIRET

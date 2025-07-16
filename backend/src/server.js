@@ -1,16 +1,14 @@
-// backend/src/server.js
-require('dotenv').config(); // Charger les variables d'environnement au tout début
+// backend/src/server.js (Ne change rien, déjà correct pour x-auth-token)
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const helmet = require('helmet'); // Import Helmet
-const path = require('path'); // Importe le module 'path' pour gérer les chemins de fichiers
+const helmet = require('helmet');
+const path = require('path');
 
-// IMPORTER initializeDatabasePool et getConnection (qui est getPooledConnection dans db.js)
 const { initializeDatabasePool } = require('./config/db');
 const startDailyTemperatureCheck = require('./jobs/dailyTemperatureCheck');
 
-// Routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -25,7 +23,6 @@ const traceabilityRoutes = require('./routes/traceabilityRoutes');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,15 +30,16 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "http://localhost:5001", "https://storage.googleapis.com"],
-      connectSrc: ["'self'", "http://localhost:5001", "http://localhost:5173", "http://localhost:5174"], // MODIFIÉ : Ajout de 5174
+      connectSrc: ["'self'", "http://localhost:5001", "http://localhost:5173", "http://localhost:5174"],
     },
   },
 }));
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'], // MODIFIÉ : Autorise les deux ports
+  origin: ['http://localhost:5173', 'http://localhost:5174'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Cette ligne est CRUCIALE pour CORS et x-auth-token :
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'], // 'x-auth-token' est bien là
   credentials: true
 }));
 app.use(bodyParser.json());

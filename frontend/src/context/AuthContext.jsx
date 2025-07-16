@@ -1,101 +1,176 @@
-// frontend/src/context/AuthContext.jsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
-// --- LIGNE À CHANGER ICI ---
-// AVANT : import { verifyToken } from '../services/AuthService';
-// APRÈS :
-import AuthService from '../services/AuthService'; // Importe l'objet AuthService par défaut
-// --- FIN DE LA LIGNE À CHANGER ---
-import axiosInstance from '../api/axiosInstance';
+// frontend/src/context/AuthContext.jsx (Ne change rien, déjà correct)
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AuthService from '../services/AuthService';
+import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
-  const checkAuth = async () => {
-    setLoading(true);
-    const token = AuthService.getToken(); // Utilisez AuthService.getToken()
-    if (token) {
-      try {
-        const userData = await AuthService.verifyToken(); // Utilisez AuthService.verifyToken()
-        if (userData) {
-          setUser(userData);
-          axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        } else {
-          AuthService.logout();
-          setUser(null);
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const userData = await AuthService.verifyToken();
+                if (userData) {
+                    setIsAuthenticated(true);
+                    setUser(userData);
+                } else {
+                    setIsAuthenticated(false);
+                    setUser(null);
+                    AuthService.logout();
+                }
+            } catch (error) {
+                console.error('Erreur lors de la vérification du token:', error);
+                setIsAuthenticated(false);
+                setUser(null);
+                AuthService.logout();
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        checkAuth();
+    }, []);
+
+    const login = async (email, password) => {
+        try {
+            const { user } = await AuthService.login(email, password);
+            setIsAuthenticated(true);
+            setUser(user);
+            return { success: true, user };
+        } catch (error) {
+            console.error('Erreur de connexion:', error);
+            setIsAuthenticated(false);
+            setUser(null);
+            return { success: false, message: error.response?.data?.message || "Échec de la connexion" };
         }
-      } catch (error) {
-        console.error('Échec de la vérification du token lors du chargement:', error);
+    };
+
+    const register = async (userData) => {
+        try {
+            const { user } = await AuthService.register(userData);
+            setIsAuthenticated(true);
+            setUser(user);
+            return { success: true, user };
+        } catch (error) {
+            console.error('Erreur d\'inscription:', error);
+            setIsAuthenticated(false);
+            setUser(null);
+            return { success: false, message: error.response?.data?.message || "Échec de l'inscription" };
+        }
+    };
+
+    const logout = () => {
         AuthService.logout();
+        setIsAuthenticated(false);
         setUser(null);
-      }
-    } else {
-      setUser(null);
+        navigate('/login');
+    };
+
+    if (loading) {
+        return <div>Chargement de l'authentification...</div>;
     }
-    setLoading(false);
-  };
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const login = async (email, password) => {
-    try {
-      const { token, user: loggedInUser } = await AuthService.login(email, password);
-      setUser(loggedInUser);
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      return true;
-    } catch (error) {
-      console.error('Erreur de connexion dans le contexte:', error);
-      setUser(null);
-      delete axiosInstance.defaults.headers.common['Authorization'];
-      throw error;
-    }
-  };
-
-  const register = async (userData) => {
-    try {
-      const { token, user: registeredUser } = await AuthService.register(userData);
-      setUser(registeredUser);
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      return true;
-    } catch (error) {
-      console.error('Erreur d\'inscription dans le contexte:', error);
-      setUser(null);
-      delete axiosInstance.defaults.headers.common['Authorization'];
-      throw error;
-    }
-  };
-
-  const logout = () => {
-    AuthService.logout();
-    setUser(null);
-    delete axiosInstance.defaults.headers.common['Authorization'];
-  };
-
-  const authContextValue = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    isAuthenticated: !!user,
-  };
-
-  return (
-    <AuthContext.Provider value={authContextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+    return (
+        <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, loading }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider');
-  }
-  return context;
+    return useContext(AuthContext);
 };
 
+
+
+
+
+
+
+
+// // frontend/src/context/AuthContext.jsx
+// import React, { createContext, useContext, useState, useEffect } from 'react';
+// import AuthService from '../services/AuthService';
+
+// const AuthContext = createContext();
+
+// export const AuthProvider = ({ children }) => {
+//     const [isAuthenticated, setIsAuthenticated] = useState(false);
+//     const [user, setUser] = useState(null);
+//     const [loading, setLoading] = useState(true); // Initialisez à true
+
+//     // Fonction pour vérifier l'authentification au chargement de l'application
+//     const checkAuth = async () => {
+//         try {
+//             setLoading(true); // Commence le chargement
+//             const userData = await AuthService.verifyToken();
+//             if (userData) {
+//                 setIsAuthenticated(true);
+//                 setUser(userData.user); // Assurez-vous que userData.user contient les infos de l'utilisateur
+//                 AuthService.setAuthHeader(userData.token); // Assurez-vous de configurer l'en-tête pour les requêtes futures
+//             } else {
+//                 setIsAuthenticated(false);
+//                 setUser(null);
+//                 AuthService.removeToken();
+//             }
+//         } catch (error) {
+//             console.error('Erreur lors de la vérification du token:', error);
+//             setIsAuthenticated(false);
+//             setUser(null);
+//             AuthService.removeToken();
+//         } finally {
+//             setLoading(false); // Termine le chargement
+//         }
+//     };
+
+//     // Effectue la vérification au premier rendu du composant
+//     useEffect(() => {
+//         checkAuth();
+//     }, []); // Dépendance vide pour ne s'exécuter qu'une seule fois au montage
+
+//     const login = async (email, password) => {
+//         try {
+//             const data = await AuthService.login(email, password);
+//             if (data.token) {
+//                 localStorage.setItem('token', data.token);
+//                 setIsAuthenticated(true);
+//                 setUser(data.user);
+//                 AuthService.setAuthHeader(data.token);
+//                 return { success: true, user: data.user }; // Retourne l'utilisateur en cas de succès
+//             }
+//             return { success: false, message: data.message || "Login failed" };
+//         } catch (error) {
+//             console.error('Erreur de connexion:', error);
+//             return { success: false, message: error.response?.data?.message || 'Erreur de connexion' };
+//         }
+//     };
+
+//     const logout = () => {
+//         setIsAuthenticated(false);
+//         setUser(null);
+//         AuthService.removeToken();
+//     };
+
+//     const register = async (userData) => {
+//         try {
+//             const data = await AuthService.register(userData);
+//             return { success: true, message: data.message };
+//         } catch (error) {
+//             console.error('Erreur d\'inscription:', error);
+//             return { success: false, message: error.response?.data?.message || 'Erreur d\'inscription' };
+//         }
+//     };
+
+//     return (
+//         <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, register, checkAuth }}>
+//             {children}
+//         </AuthContext.Provider>
+//     );
+// };
+
+// export const useAuth = () => useContext(AuthContext);

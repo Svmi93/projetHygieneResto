@@ -1,3 +1,13 @@
+/* frontend/src/pages/DashboardLayout.css ou un autre fichier CSS */
+.sidebar-button.active {
+  background-color: #4f46e5; /* Exemple: une couleur d'arrière-plan différente */
+  color: white;
+  font-weight: bold;
+}
+.sidebar-button:hover {
+  background-color: #6366f1; /* Pour le survol */
+}
+
 /* frontend/src/pages/DashboardLayout.css */
 .dashboard-layout {
     display: flex;
