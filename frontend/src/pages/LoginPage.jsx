@@ -1,110 +1,305 @@
 // frontend/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 import './LoginPage.css';
 
-// Ajout de la prop onCancel pour permettre à App.jsx de fermer le formulaire
-function LoginPage({ onLoginSuccess, onCancel }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function LoginPage({ onCancel }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const { login } = useAuth(); // Utilise la fonction login du contexte d'authentification
+    const navigate = useNavigate(); // Hook pour la navigation
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Tentative de soumission du formulaire de connexion.");
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError(''); // Réinitialise les erreurs
 
-    setError('');
-    setSuccess('');
-    setMessage('');
-    setIsSubmitting(true);
+        console.log('Tentative de soumission du formulaire de connexion.');
 
-    try {
-      const response = await axios.post('http://localhost:5001/api/auth/login', {
-        email,
-        password,
-      });
+        try {
+            const result = await login(email, password); // Appelle la fonction login du contexte
+            if (result.success) {
+                // Redirection basée sur le rôle de l'utilisateur
+                const userRole = result.user?.role; // Accède au rôle depuis le résultat
+                switch (userRole) {
+                    case 'admin_client':
+                        navigate('/admin-client-dashboard', { replace: true });
+                        break;
+                    case 'employer':
+                        navigate('/employee-dashboard', { replace: true });
+                        break;
+                    case 'super_admin':
+                        navigate('/super-admin-dashboard', { replace: true });
+                        break;
+                    default:
+                        navigate('/', { replace: true }); // Redirection par défaut si le rôle n'est pas reconnu
+                }
+            } else {
+                setError(result.message || 'Échec de la connexion. Veuillez vérifier vos identifiants.');
+            }
+        } catch (err) {
+            console.error('Erreur lors de la connexion:', err);
+            setError('Une erreur inattendue est survenue.');
+        }
+    };
 
-      console.log('Connexion réussie:', response.data);
-      const { token, role, id, siret } = response.data;
-
-      localStorage.setItem('userToken', token);
-      localStorage.setItem('userRole', role);
-      localStorage.setItem('userId', id);
-      if (siret) {
-        localStorage.setItem('clientId', siret);
-      } else {
-        localStorage.removeItem('clientId');
-      }
-
-      setSuccess('Connexion réussie ! Redirection...');
-      onLoginSuccess(role); // Appelle la fonction de rappel de App.jsx
-    } catch (err) {
-      console.error('Erreur de connexion:', err);
-      if (err.response) {
-        setError(err.response.data.message || 'Erreur lors de la connexion.');
-      } else if (err.request) {
-        setError('Impossible de se connecter au serveur. Le backend est-il démarré et accessible ?');
-      } else {
-        setError('Erreur inattendue lors de la connexion.');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="login-page-container">
-      <h2>Connexion</h2>
-      {error && <p className="error-message">{error}</p>}
-      {success && <p className="success-message">{success}</p>}
-      {message && <p className="info-message">{message}</p>}
-      <form onSubmit={handleSubmit} className="login-form">
-        <div className="form-group">
-          <label htmlFor="email">Email :</label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="votre.email@exemple.com"
-            required
-            autoComplete="email"
-          />
+    return (
+        <div className="login-page">
+            <div className="login-form-container">
+                <h2>Connexion</h2>
+                <form onSubmit={handleSubmit} className="login-form">
+                    <div className="form-group">
+                        <label htmlFor="email">Email :</label>
+                        <input
+                            type="email"
+                            id="email"
+                            placeholder="Votre email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="password">Mot de passe :</label>
+                        <input
+                            type="password"
+                            id="password"
+                            placeholder="Votre mot de passe secret"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            name="password" // Ajouté pour autocomplete (suggestion du navigateur)
+                        />
+                    </div>
+                    {error && <p className="error-message">{error}</p>}
+                    <div className="form-actions">
+                        <button type="submit" className="login-button">Se connecter</button>
+                        {onCancel && <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>}
+                    </div>
+                </form>
+            </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="password">Mot de passe :</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Votre mot de passe secret"
-            required
-            autoComplete="current-password"
-          />
-        </div>
-      <div className="buttonCantainer">
-        <button type="submit" className="submit-button" disabled={isSubmitting}>
-          {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
-        </button>
-        {onCancel && ( // Bouton Annuler pour fermer le formulaire
-          <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
-        
-        )}
-      </div>
-      </form>
-      {/* Ce paragraphe est conservé si vous voulez une indication, mais le bouton "S'enregistrer" est dans la navbar */}
-      <p className="register-hint">
-        Pas encore de compte ? Contactez votre administrateur.
-      </p>
-    </div>
-  );
+    );
 }
 
 export default LoginPage;
+
+
+
+
+
+
+// // frontend/src/pages/LoginPage.jsx
+// import React, { useState } from 'react';
+// import { useNavigate } from 'react-router-dom'; // Importez useNavigate
+// import AuthService from '../services/AuthService'; // Importez AuthService
+// import { useAuth } from '../context/AuthContext'; // Importez useAuth pour la fonction login du contexte
+// import './LoginPage.css';
+
+// function LoginPage({ onCancel }) { // onLoginSuccess n'est plus nécessaire ici, le contexte gère la connexion
+//   const [email, setEmail] = useState('');
+//   const [password, setPassword] = useState('');
+//   const [error, setError] = useState('');
+//   const [success, setSuccess] = useState('');
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+
+//   const { login: contextLogin } = useAuth(); // Renomme la fonction login du contexte pour éviter les conflits
+//   const navigate = useNavigate(); // Initialise useNavigate
+
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     console.log("Tentative de soumission du formulaire de connexion.");
+
+//     setError('');
+//     setSuccess('');
+//     setIsSubmitting(true);
+
+//     try {
+//       // Utilisez la fonction login du contexte d'authentification
+//       // Elle se chargera de stocker le token et de mettre à jour l'état global
+//       const loginSuccess = await contextLogin(email, password); // contextLogin renvoie true/false
+      
+//       if (loginSuccess) {
+//         setSuccess('Connexion réussie ! Redirection...');
+//         // Le AuthContext mettra à jour l'état global et déclenchera le rendu de App.jsx
+//         // La redirection sera gérée par App.jsx via le PrivateRoute ou la logique de routage
+//         // Pas besoin de navigate ici, car App.jsx va réagir à l'état d'authentification.
+//       } else {
+//         setError('Échec de la connexion. Veuillez vérifier vos identifiants.');
+//       }
+//     } catch (err) {
+//       console.error('Erreur de connexion:', err);
+//       // L'erreur est déjà loggée par AuthService, ici on affiche juste le message à l'utilisateur
+//       setError(err.response?.data?.message || 'Erreur lors de la connexion.');
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   return (
+//     <div className="login-page-container">
+//       <h2>Connexion</h2>
+//       {error && <p className="error-message">{error}</p>}
+//       {success && <p className="success-message">{success}</p>}
+//       {/* Supprimé le 'message' state car non utilisé */}
+//       <form onSubmit={handleSubmit} className="login-form">
+//         <div className="form-group">
+//           <label htmlFor="email">Email :</label>
+//           <input
+//             type="email"
+//             id="email"
+//             value={email}
+//             onChange={(e) => setEmail(e.target.value)}
+//             placeholder="votre.email@exemple.com"
+//             required
+//             autoComplete="email"
+//           />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="password">Mot de passe :</label>
+//           <input
+//             type="password"
+//             id="password"
+//             value={password}
+//             onChange={(e) => setPassword(e.target.value)}
+//             placeholder="Votre mot de passe secret"
+//             required
+//             autoComplete="current-password"
+//           />
+//         </div>
+//       <div className="buttonCantainer">
+//         <button type="submit" className="submit-button" disabled={isSubmitting}>
+//           {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
+//         </button>
+//         {onCancel && (
+//           <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
+//         )}
+//       </div>
+//       </form>
+//       <p className="register-hint">
+//         Pas encore de compte ? Contactez votre administrateur.
+//       </p>
+//     </div>
+//   );
+// }
+
+// export default LoginPage;
+
+
+
+
+
+
+
+
+// // frontend/src/pages/LoginPage.jsx
+// import React, { useState } from 'react';
+// import axios from 'axios';
+// import './LoginPage.css';
+
+// // Ajout de la prop onCancel pour permettre à App.jsx de fermer le formulaire
+// function LoginPage({ onLoginSuccess, onCancel }) {
+//   const [email, setEmail] = useState('');
+//   const [password, setPassword] = useState('');
+//   const [error, setError] = useState('');
+//   const [success, setSuccess] = useState('');
+//   const [message, setMessage] = useState('');
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     console.log("Tentative de soumission du formulaire de connexion.");
+
+//     setError('');
+//     setSuccess('');
+//     setMessage('');
+//     setIsSubmitting(true);
+
+//     try {
+//       const response = await axios.post('http://localhost:5001/api/auth/login', {
+//         email,
+//         password,
+//       });
+
+//       console.log('Connexion réussie:', response.data);
+//       const { token, role, id, siret } = response.data;
+
+//       localStorage.setItem('userToken', token);
+//       localStorage.setItem('userRole', role);
+//       localStorage.setItem('userId', id);
+//       if (siret) {
+//         localStorage.setItem('clientId', siret);
+//       } else {
+//         localStorage.removeItem('clientId');
+//       }
+
+//       setSuccess('Connexion réussie ! Redirection...');
+//       onLoginSuccess(role); // Appelle la fonction de rappel de App.jsx
+//     } catch (err) {
+//       console.error('Erreur de connexion:', err);
+//       if (err.response) {
+//         setError(err.response.data.message || 'Erreur lors de la connexion.');
+//       } else if (err.request) {
+//         setError('Impossible de se connecter au serveur. Le backend est-il démarré et accessible ?');
+//       } else {
+//         setError('Erreur inattendue lors de la connexion.');
+//       }
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   return (
+//     <div className="login-page-container">
+//       <h2>Connexion</h2>
+//       {error && <p className="error-message">{error}</p>}
+//       {success && <p className="success-message">{success}</p>}
+//       {message && <p className="info-message">{message}</p>}
+//       <form onSubmit={handleSubmit} className="login-form">
+//         <div className="form-group">
+//           <label htmlFor="email">Email :</label>
+//           <input
+//             type="email"
+//             id="email"
+//             value={email}
+//             onChange={(e) => setEmail(e.target.value)}
+//             placeholder="votre.email@exemple.com"
+//             required
+//             autoComplete="email"
+//           />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="password">Mot de passe :</label>
+//           <input
+//             type="password"
+//             id="password"
+//             value={password}
+//             onChange={(e) => setPassword(e.target.value)}
+//             placeholder="Votre mot de passe secret"
+//             required
+//             autoComplete="current-password"
+//           />
+//         </div>
+//       <div className="buttonCantainer">
+//         <button type="submit" className="submit-button" disabled={isSubmitting}>
+//           {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
+//         </button>
+//         {onCancel && ( // Bouton Annuler pour fermer le formulaire
+//           <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
+        
+//         )}
+//       </div>
+//       </form>
+//       {/* Ce paragraphe est conservé si vous voulez une indication, mais le bouton "S'enregistrer" est dans la navbar */}
+//       <p className="register-hint">
+//         Pas encore de compte ? Contactez votre administrateur.
+//       </p>
+//     </div>
+//   );
+// }
+
+// export default LoginPage;
 
 
 

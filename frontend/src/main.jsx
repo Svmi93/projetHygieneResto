@@ -1,11 +1,20 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+// frontend/src/main.jsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import React from 'react';
-import './index.css'
-import App from './App.jsx'
+import { BrowserRouter as Router } from 'react-router-dom'; // Importez BrowserRouter ici
+import './index.css';
+import App from './App.jsx';
+import { AuthProvider } from './context/AuthContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    {/* Le Router DOIT ENVELOPPER AuthProvider pour que useNavigate fonctionne dans AuthProvider */}
+    <Router>
+      {/* AuthProvider doit envelopper App pour que useAuth soit disponible dans App */}
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </Router>
   </StrictMode>,
-)
+);

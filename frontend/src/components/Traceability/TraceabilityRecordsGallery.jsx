@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 // CORRIGÉ : Le chemin d'accès et l'extension du fichier sont maintenant .jsx
 import { useAuth } from '../../context/AuthContext'; // <--- CHANGEMENT ICI : AuthContext.js devient AuthContext.jsx
+import './TraceabilityRecordsGallery.css'
 
 const TraceabilityRecordsGallery = ({ refreshTrigger }) => {
     const [records, setRecords] = useState([]);
