@@ -1,16 +1,16 @@
 // frontend/src/App.jsx
-import React, { useState, useEffect } from 'react'; // useState peut être retiré si showLoginForm/showRegisterForm sont supprimés
+import React from 'react'; // useState et useEffect ne sont plus nécessaires s'ils sont supprimés du corps de App
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
-// Imports de vos pages et composants
+// VOS IMPORTS DE PAGES ET COMPOSANTS EXISTANTS
 import LoginPage from './pages/LoginPage';
 import AdminClientDashboardPage from './pages/AdminClientDashboardPage';
 import EmployeeDashboardPage from './pages/EmployerDashboardPage';
-import SuperAdminDashboardPage from './pages/AdminDashboardPage';
+import SuperAdminDashboardPage from './pages/AdminDashboardPage'; // Votre "AdminDashboardPage" est pour le Super Admin
 import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
 import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
 import PrivateRoute from './components/PrivateRoute';
-import HomePage from './components/HomePage'; // HomePage n'affichera plus les formulaires directement
+import HomePage from './components/HomePage'; // Votre HomePage
 
 import './App.css'; // Assurez-vous que cette ligne est présente
 
@@ -21,33 +21,14 @@ function App() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // CES ÉTATS SONT À RETIRER, car les routes géreront l'affichage des formulaires
+    // CES ÉTATS SONT SUPPRIMÉS : Les routes géreront l'affichage des formulaires.
     // const [showLoginForm, setShowLoginForm] = useState(false);
     // const [showRegisterForm, setShowRegisterForm] = useState(false);
 
-    // CE useEffect EST À RETIRER COMPLETEMENT
+    // CE useEffect EST SUPPRIMÉ COMPLETEMENT : Les <Navigate> dans les Routes gèrent déjà cela.
     /*
     useEffect(() => {
-        if (!authLoading && isAuthenticated && location.pathname === '/') {
-            let targetPath = '/';
-            switch (user?.role) {
-                case 'admin_client':
-                    targetPath = '/admin-client-dashboard';
-                    break;
-                case 'employer':
-                    targetPath = '/employee-dashboard';
-                    break;
-                case 'super_admin':
-                    targetPath = '/super-admin-dashboard';
-                    break;
-                default:
-                    console.warn("Authenticated user with unrecognized role on home page.");
-                    return;
-            }
-            if (targetPath !== '/' && location.pathname !== targetPath) {
-                navigate(targetPath, { replace: true });
-            }
-        }
+        // ... (code supprimé)
     }, [isAuthenticated, user, authLoading, navigate, location.pathname]);
     */
 
@@ -59,11 +40,11 @@ function App() {
     };
 
     const handleLogout = () => {
-        logout();
+        logout(); // Appelle la fonction logout du contexte (qui nettoie le localStorage)
         navigate('/', { replace: true }); // Redirige vers la page d'accueil après la déconnexion
     };
 
-    // CES FONCTIONS SONT À SIMPLIFIER
+    // CES FONCTIONS SONT SIMPLIFIÉES pour simplement naviguer
     const openLoginForm = () => {
         navigate('/login', { replace: true });
     };
@@ -137,7 +118,7 @@ function App() {
                             <Navigate to={getDashboardPath(user?.role)} replace />
                         ) : (
                             // Si non authentifié, affiche la HomePage statique
-                            <HomePage /> // Ne passe plus de props de formulaire ici
+                            <HomePage /> // HomePage ne reçoit plus de props de formulaire ici
                         )
                     } />
 
@@ -178,6 +159,9 @@ function App() {
 }
 
 export default App;
+
+
+
 
 
 

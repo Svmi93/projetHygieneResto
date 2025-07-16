@@ -1,59 +1,46 @@
 // frontend/src/api/axiosInstance.js
 import axios from 'axios';
 
-// Crée une instance Axios personnalisée
 const axiosInstance = axios.create({
-  // L'URL de base de ton API backend.
-  // Assure-toi que cela correspond au port que ton Docker Compose expose pour l'API (5001).
-  baseURL: 'http://localhost:5001/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  // 'withCredentials' est important si tu utilises des cookies ou des sessions basées sur des cookies
-  // entre ton frontend et ton backend. Si tu n'utilises que des tokens JWT dans les headers,
-  // tu peux le laisser à 'false' ou l'omettre.
-  withCredentials: true,
+    baseURL: 'http://localhost:5001/api', // Assurez-vous que cette URL est correcte pour votre backend
+    withCredentials: true, // Important pour les cookies et sessions si vous les utilisez
 });
 
-// Intercepteur de requêtes : ajoute le token JWT à chaque requête sortante
-// Cela évite de devoir ajouter manuellement l'en-tête 'Authorization' à chaque appel.
+// Intercepteur de requêtes pour ajouter le token JWT
 axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('userToken'); // Récupère le token depuis le localStorage
-    if (token) {
-      // Si un token existe, l'ajoute à l'en-tête 'Authorization'
-      config.headers.Authorization = `Bearer ${token}`;
+    (config) => {
+        // Récupère le token depuis le localStorage
+        const token = localStorage.getItem('userToken'); // Assurez-vous que la clé est 'userToken'
+
+        // Si un token existe, ajoute-le à l'en-tête Authorization
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            // Si votre backend attend un en-tête 'x-auth-token' au lieu de 'Authorization', utilisez la ligne ci-dessous :
+            // config.headers['x-auth-token'] = token;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
-    return config; // Retourne la configuration de la requête modifiée
-  },
-  (error) => {
-    // Gère les erreurs lors de la préparation de la requête
-    return Promise.reject(error);
-  }
 );
 
-// Intercepteur de réponses : gère les erreurs d'authentification/autorisation de manière globale
-// Si le backend renvoie un statut 401 ou 403, cela signifie que le token est invalide ou expiré.
+// Intercepteur de réponses pour gérer les erreurs d'authentification (ex: 401 Unauthorized)
 axiosInstance.interceptors.response.use(
-  (response) => response, // Si la réponse est bonne (statut 2xx), la passe directement
-  (error) => {
-    // Vérifie si l'erreur provient d'une réponse HTTP et si le statut est 401 ou 403
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      console.error('Erreur d\'authentification/autorisation détectée. Déconnexion forcée.');
-      // Déconnecte l'utilisateur en supprimant tous les tokens et informations de rôle du localStorage
-      localStorage.removeItem('userToken');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userId');
-
-      // Redirige l'utilisateur vers la page de connexion.
-      // 'window.location.href' force un rechargement complet de la page,
-      // ce qui est souvent plus sûr pour réinitialiser complètement l'état de l'application après une déconnexion forcée.
-      // Assure-toi que '/login' est bien la route de ta page de connexion.
-      window.location.href = '/login';
+    (response) => response,
+    (error) => {
+        // Si l'erreur est un 401 (Unauthorized) ou 403 (Forbidden), cela peut indiquer un token invalide ou expiré
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            console.error('Erreur d\'authentification (401/403). Déconnexion de l\'utilisateur.');
+            // Ne pas importer AuthService ici pour éviter les dépendances circulaires.
+            // La déconnexion doit être gérée par le AuthContext ou le composant appelant.
+            // Pour l'instant, on se contente de logguer l'erreur.
+            // Si vous voulez une déconnexion automatique ici, vous devrez
+            // gérer la logique de manière plus avancée (ex: en utilisant un événement global ou un hook).
+            // Pour ce cas, le AuthContext.jsx gère déjà la déconnexion si verifyToken échoue.
+        }
+        return Promise.reject(error);
     }
-    // Propage l'erreur pour que le code appelant (dans les composants/services) puisse la gérer aussi
-    return Promise.reject(error);
-  }
 );
 
-export default axiosInstance; // Exporte l'instance Axios configurée pour être utilisée partout
+export default axiosInstance;

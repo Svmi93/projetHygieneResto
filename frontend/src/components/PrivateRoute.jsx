@@ -1,20 +1,36 @@
 // frontend/src/components/PrivateRoute.jsx
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-const PrivateRoute = ({ allowedRoles, isLoggedIn, userRole, children }) => {
-  if (!isLoggedIn) {
-    // Si l'utilisateur n'est pas connecté, rediriger vers la page de connexion
-    return <Navigate to="/" replace />; // Ou vers une page de connexion spécifique
-  }
+const PrivateRoute = ({ children, role: requiredRole, roles: requiredRolesArray }) => {
+    const { isAuthenticated, user, loading: authLoading } = useAuth();
 
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    // Si l'utilisateur est connecté mais n'a pas le bon rôle, rediriger vers une page d'accès refusé ou le dashboard
-    return <Navigate to="/" replace />; // Ou vers un dashboard par défaut ou une page 403
-  }
+    if (authLoading) {
+        // Afficher un écran de chargement pendant la vérification de l'authentification initiale
+        return <div className="loading-screen">Chargement de l'authentification...</div>;
+    }
 
-  // Si l'utilisateur est connecté et a le bon rôle, rendre les enfants (la page demandée)
-  return children ? children : <Outlet />;
+    if (!isAuthenticated) {
+        // Non authentifié, redirige vers la page de connexion
+        return <Navigate to="/login" replace />;
+    }
+
+    // Si un rôle unique est spécifié et que le rôle de l'utilisateur ne correspond pas
+    if (requiredRole && user?.role !== requiredRole) {
+        console.warn(`Accès refusé. Rôle utilisateur: ${user?.role}, Rôle requis: ${requiredRole}`);
+        // Redirige vers une page d'accès refusé ou le tableau de bord par défaut
+        return <Navigate to="/access-denied" replace />; // Ou vers '/' ou '/login' si tu préfères
+    }
+
+    // Si une liste de rôles est spécifiée et que le rôle de l'utilisateur n'est pas inclus
+    if (requiredRolesArray && !requiredRolesArray.includes(user?.role)) {
+        console.warn(`Accès refusé. Rôle utilisateur: ${user?.role}, Rôles requis: ${requiredRolesArray.join(', ')}`);
+        return <Navigate to="/access-denied" replace />; // Ou vers '/' ou '/login' si tu préfères
+    }
+
+    // Authentifié et rôle autorisé, affiche le contenu enfant
+    return children;
 };
 
 export default PrivateRoute;

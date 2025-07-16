@@ -1,4 +1,4 @@
-// backend/src/middleware/authMiddleware.js
+// backend/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
 // Middleware pour authentifier le token JWT
@@ -16,19 +16,20 @@ exports.authenticateToken = (req, res, next) => {
         token = req.headers['x-auth-token'];
     }
 
-    if (!token) { // Utilisez !token au lieu de token == null pour couvrir undefined, null, vide
+    if (!token) { // Utilise !token au lieu de token == null pour couvrir undefined, null, vide
         console.warn('Authentication token missing from Authorization header or x-auth-token.');
         return res.status(401).json({ message: 'Authentication token required.' });
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
+            // Le token est invalide (expiré, malformé, etc.)
             console.error('JWT Verification Error: Token invalid or expired.', err.message);
             return res.status(403).json({ message: 'Invalid or expired token.' });
         }
         console.log('JWT Payload (user object after verification):', user);
-        req.user = user; // Attache le payload décodé à l'objet req.user
-        next();
+        req.user = user; // Attache les informations de l'utilisateur au req (y compris id, role, client_id/siret)
+        next(); // Passe au prochain middleware ou à la fonction de route
     });
 };
 
@@ -52,6 +53,7 @@ exports.authorizeRoles = (...allowedRoles) => {
         }
     };
 };
+
 
 
 

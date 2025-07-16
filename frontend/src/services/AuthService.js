@@ -1,34 +1,24 @@
 // frontend/src/services/AuthService.js
-import axiosInstance from '../api/axiosInstance'; // Assurez-vous que ce chemin est correct
+import axiosInstance from '../api/axiosInstance';
 
-// L'URL de base pour les requêtes d'authentification.
-// Puisque axiosInstance.baseURL est 'http://localhost:5001/api',
-// AUTH_API_URL doit être '/auth' pour former des chemins comme '/api/auth/login'.
-const AUTH_API_URL = '/auth'; // <--- CORRECTION ICI
+const AUTH_API_URL = '/auth';
 
 const AuthService = {
-    // Fonction de connexion de l'utilisateur
     login: async (email, password) => {
         try {
             const response = await axiosInstance.post(`${AUTH_API_URL}/login`, { email, password });
-            // Stocke le token et les informations utilisateur dans le localStorage
-            // Utilisez 'userToken' pour être cohérent avec l'intercepteur Axios
-            localStorage.setItem('userToken', response.data.token); // <--- CORRECTION ICI
-            localStorage.setItem('user', JSON.stringify(response.data.user)); // Stocke les infos utilisateur
+            localStorage.setItem('userToken', response.data.token); // Clé 'userToken'
+            localStorage.setItem('user', JSON.stringify(response.data.user));
             return response.data;
         } catch (error) {
             console.error('Erreur lors de la connexion:', error);
-            // Propage l'erreur pour qu'elle puisse être gérée par le composant appelant (LoginPage)
             throw error;
         }
     },
 
-    // Fonction d'enregistrement d'un nouvel utilisateur (par exemple, admin_client)
     register: async (userData) => {
         try {
             const response = await axiosInstance.post(`${AUTH_API_URL}/register`, userData);
-            // Pour l'inscription, nous ne connectons pas automatiquement l'utilisateur
-            // Le composant RegisterAdminClientPage gérera la redirection vers la page de connexion
             return response.data;
         } catch (error) {
             console.error('Erreur lors de l\'inscription:', error);
@@ -36,30 +26,26 @@ const AuthService = {
         }
     },
 
-    // Fonction pour vérifier la validité du token existant
     verifyToken: async () => {
         try {
-            // Utilise une requête GET pour vérifier le token. Le middleware backend s'en chargera.
+            // Le token est automatiquement ajouté par l'intercepteur axiosInstance
             const response = await axiosInstance.get(`${AUTH_API_URL}/verify-token`);
-            // Si la réponse est positive, le token est valide et contient les infos utilisateur
-            return response.data.user; // Retourne directement l'objet utilisateur
+            return response.data.user;
         } catch (error) {
             console.error('Erreur de vérification du token:', error);
-            // En cas d'échec de vérification (token invalide/expiré), déconnecte l'utilisateur
+            // Si la vérification échoue, on déconnecte côté client
             AuthService.logout();
-            throw error; // Propage l'erreur pour que AuthContext puisse la gérer
+            throw error;
         }
     },
 
-    // Fonction de déconnexion
     logout: () => {
-        // Supprime toutes les informations d'authentification du localStorage
-        localStorage.removeItem('userToken'); // <--- CORRECTION ICI
+        localStorage.removeItem('userToken'); // Clé 'userToken'
         localStorage.removeItem('user');
         console.log('Token et informations utilisateur supprimés du localStorage.');
+        // PAS de navigation ici
     },
 
-    // Fonction pour récupérer l'utilisateur actuellement connecté depuis le localStorage
     getCurrentUser: () => {
         try {
             const user = localStorage.getItem('user');
@@ -72,6 +58,7 @@ const AuthService = {
 };
 
 export default AuthService;
+
 
 
 
