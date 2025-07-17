@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import DashboardLayout from '../components/DashboardLayout';
 import EquipmentForm from '../components/EquipmentForm';
-import UserForm from '../components/UserForm';
-import './AdminClientDashboardPage.css';
+import UserForm from '../components/UserForm'; // Le formulaire pour créer des utilisateurs/employés
 
 // --- IMPORTS POUR LES ALERTES ---
 import AlertPopup from '../components/AlertPopup';
@@ -15,10 +14,6 @@ import { getMyAlerts, markAlertAsRead } from '../services/alertService';
 import AddTraceabilityForm from '../components/Traceability/AddTraceabilityForm';
 import TraceabilityRecordsGallery from '../components/Traceability/TraceabilityRecordsGallery';
 // --- FIN NOUVEAUX IMPORTS TRAÇABILITÉ ---
-
-// --- NOUVEL IMPORT POUR LA GESTION DES CLIENTS ---
-import UserClientManagement from '../components/UserClientManagement';
-// --- FIN NOUVEL IMPORT ---
 
 // --- NOUVEL IMPORT : useAuth ---
 import { useAuth } from '../context/AuthContext';
@@ -138,7 +133,8 @@ const AdminClientDashboardPage = () => {
   };
 
   const handleEmployeeCreated = (newEmployee) => {
-    setEmployees(prevEmployees => [...prevEmployees, newEmployee]);
+    // Si l'employé est créé avec succès, vous pouvez le rafraîchir ici ou re-fetcher la liste
+    console.log("Nouvel employé créé:", newEmployee);
     fetchMyEmployees(); // Re-fetch pour s'assurer que la liste est à jour après ajout
   };
 
@@ -227,6 +223,8 @@ const AdminClientDashboardPage = () => {
   const employeeFormInitialData = adminClientProfile ? {
     admin_client_id: adminClientProfile.id,
     isCreatingEmployeeByAdminClient: true
+    // Vous pourriez aussi passer le SIRET ici si nécessaire pour le formulaire
+    // admin_client_siret: adminClientProfile.siret // Si UserForm en a besoin
   } : {
     isCreatingEmployeeByAdminClient: true
   };
@@ -407,17 +405,8 @@ const AdminClientDashboardPage = () => {
           </div>
         </div>
       )
-    },
-    {
-      label: 'Gérer les Clients', // Ce label est trompeur car le composant gère les employés.
-                                 // Pensez à renommer UserClientManagement en EmployeeManagement
-      title: 'Gérer les informations de vos clients et de leurs établissements',
-      content: (
-        <div className="admin-section p-6 bg-white rounded-lg shadow-md">
-          <UserClientManagement />
-        </div>
-      )
     }
+    // L'entrée 'Gérer les Clients' a été supprimée comme demandé.
   ];
 
   return (

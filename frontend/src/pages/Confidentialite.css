@@ -1,0 +1,116 @@
+/* Confidentialite.css */
+
+/* Importation de la police Inter depuis Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f0f2f5; /* Couleur de fond légère pour tout le corps */
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.container {
+    max-width: 960px; /* Largeur maximale pour le contenu */
+    margin: 0 auto; /* Centrer le conteneur */
+    padding: 20px; /* Espacement intérieur */
+    background-color: #f8f9fa; /* Fond légèrement différent pour le contenu principal */
+    border-radius: 10px; /* Coins arrondis pour le conteneur */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Ombre légère pour le conteneur */
+}
+
+/* Styles pour les titres H1 */
+h1 {
+    color: #1e40af; /* Bleu foncé */
+    font-size: 2.5rem; /* Grande taille de police */
+    margin-bottom: 1.5rem; /* Espacement en dessous */
+    text-align: center; /* Centrer le texte */
+    font-weight: 700; /* Gras */
+}
+
+/* Styles pour les titres H2 */
+h2 {
+    color: #1d4ed8; /* Bleu moyen */
+    font-size: 1.875rem; /* Taille de police légèrement plus petite */
+    margin-bottom: 1rem; /* Espacement en dessous */
+    font-weight: 600; /* Semi-gras */
+}
+
+/* Styles pour les paragraphes */
+p {
+    color: #4b5563; /* Gris foncé */
+    line-height: 1.6; /* Hauteur de ligne pour une meilleure lisibilité */
+    margin-bottom: 1rem; /* Espacement en dessous */
+}
+
+/* Styles pour les listes */
+ul {
+    list-style-type: disc; /* Puces de disque */
+    margin-left: 20px; /* Indentation pour les listes */
+    margin-bottom: 1rem; /* Espacement en dessous */
+}
+
+ul li {
+    color: #4b5563; /* Gris foncé */
+    margin-bottom: 0.5rem; /* Espacement entre les éléments de liste */
+    line-height: 1.5;
+}
+
+/* Styles pour les sections (blocs de contenu) */
+section {
+    background-color: #ffffff; /* Fond blanc pour les sections */
+    padding: 20px; /* Espacement intérieur */
+    border-radius: 8px; /* Coins arrondis */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); /* Ombre plus légère pour les sections */
+    margin-bottom: 2rem; /* Espacement entre les sections */
+}
+
+/* Styles pour les liens */
+a {
+    color: #3b82f6; /* Bleu vif pour les liens */
+    text-decoration: none; /* Pas de soulignement par défaut */
+}
+
+a:hover {
+    text-decoration: underline; /* Soulignement au survol */
+}
+
+/* Styles pour le texte en gras */
+strong {
+    font-weight: 600; /* Semi-gras */
+    color: #374151; /* Gris encore plus foncé pour le texte important */
+}
+
+/* Responsive design pour les petits écrans */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    section {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+    }
+
+    p, ul li {
+        font-size: 0.9rem;
+    }
+}

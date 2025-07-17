@@ -11,6 +11,7 @@ import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
 import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
 import PrivateRoute from './components/PrivateRoute';
 import HomePage from './components/HomePage'; // Votre HomePage
+import Confidentialite from './pages/Confidentialite';
 
 import './App.css'; // Assurez-vous que cette ligne est présente
 
@@ -83,7 +84,9 @@ function App() {
         <div className="App">
             <header className="App-header">
                 <div className="logo">
-                    <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+                    <a href="/" aria-label="Retour à la page d'accueil">
+                        <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+                    </a>
                 </div>
                 <nav className="main-nav">
                     {!isAuthenticated ? (
@@ -154,6 +157,39 @@ function App() {
                     <Route path="*" element={<div>404 - Page non trouvée</div>} />
                 </Routes>
             </main>
+            <section className='end-page'>
+            
+            <footer className="App-footer bg-gray-800 text-white py-6 mt-8">
+                
+                <div class=" down container text-center text-sm">
+
+            <menubar class="bg-white shadow-sm py-4">
+                 <div class="container-flex  flex-col md:flex-row justify-between items-center">
+            
+                    <nav class="menubar-nav-href flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-2 text-sm font-medium">
+                        <a href="/demander-demo.html" class="text-gray-700 hover:text-gray-900">Demander une démo</a>
+                        <a href="/essai-gratuit.html" class="text-gray-700 hover:text-gray-900">Essai gratuit</a>
+                        <a href="/fonctionnalites.html" class="text-gray-700 hover:text-gray-900">Fonctionnalités</a>
+                        <a href="/secteur.html" class="text-gray-700 hover:text-gray-900">Secteur</a>
+                        <a href="/boutique.html" class="text-gray-700 hover:text-gray-900">Boutique</a>
+                        <a href="/formation-haccp.html" class="text-gray-700 hover:text-gray-900">Formation HACCP</a>
+                        <a href="/blog.html" class="text-gray-700 hover:text-gray-900">Blog</a>
+                    </nav>
+                </div>
+            </menubar>
+
+                 <p>&copy; 2024 Votre Application d'Hygiène et Sécurité Alimentaire. Tous droits réservés.</p>
+                <div class="mt-2">
+                <Link to="/Confidentialite" className="text-gray-400 hover:text-white mx-2">Avis de confidentialité</Link> |
+                <a href="/conditions-generales-utilisation.html" class="text-gray-400 hover:text-white mx-2">Conditions générales d’utilisation</a> |
+                <a href="/faq.html" class="text-gray-400 hover:text-white mx-2">FAQ</a> |
+                <a href="/mentions-legales.html" class="text-gray-400 hover:text-white mx-2">Mentions légales</a> |
+                <a href="/contactez-nous.html" class="text-gray-400 hover:text-white mx-2">Contactez-nous</a> |
+                <a href="/politique-de-cookies.html" class="text-gray-400 hover:text-white mx-2">Politique de cookies</a>
+            </div>
+        </div>
+    </footer>
+    </section>
         </div>
     );
 }

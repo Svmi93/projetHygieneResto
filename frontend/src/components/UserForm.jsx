@@ -11,32 +11,32 @@ const createInitialFormData = (data, isCreatingEmployer, isRegisteringAdminClien
     prenom_client: data.prenom_client || '',
     email: data.email || '',
     password: '', // Password is never pre-filled for security
+    confirmPassword: '', // Nouveau champ pour la confirmation du mot de passe
     telephone: data.telephone || '',
     adresse: data.adresse || '',
-    siret: data.siret || '', // SIRET peut être fourni ou non
+    siret: data.siret || '', // SIRET peut être fourni ou non (pour admin_client ou super_admin)
     admin_client_siret: data.admin_client_siret || '' // admin_client_siret peut être fourni ou non
   };
 
   if (isCreatingEmployer) {
-    // Mode: Admin Client crée un Employé
+    // MODE : Admin Client crée un Employé
+    // Les champs nom_entreprise, adresse et admin_client_siret seront mis à jour par le useEffect ci-dessous.
+    // Le SIRET de l'employé est vide car l'employé n'a pas son propre SIRET d'entreprise.
     return {
       ...baseData,
-      // Ces champs seront pré-remplis par le useEffect ou ignorés par le backend
-      nom_entreprise: data.nom_entreprise || '',
-      adresse: data.adresse || '',
-      siret: '', // L'employé n'a pas de SIRET propre
-      role: 'employer', // Rôle forcé à 'employer'
-      admin_client_siret: data.admin_client_siret || ''
+      siret: '', // L'employé n'a pas de SIRET propre, donc vide
+      role: 'employer', // Rôle forcé à 'employer' et sera en lecture seule
+      admin_client_siret: data.admin_client_siret || '' // Sera rempli par le useEffect
     };
   } else if (isRegisteringAdminClient) {
-    // Mode: Enregistrement d'un nouvel Admin Client
+    // MODE : Enregistrement d'un nouvel Admin Client (via la page d'inscription publique)
     return {
       ...baseData,
       role: 'admin_client', // Rôle forcé à 'admin_client'
       admin_client_siret: '' // Pas de admin_client_siret pour un admin_client
     };
   } else {
-    // Mode: Super Admin crée/met à jour n'importe quel type d'utilisateur
+    // MODE : Super Admin crée/met à jour n'importe quel type d'utilisateur
     return {
       ...baseData,
       role: data.role || 'employer' // Rôle par défaut 'employer' si non spécifié
@@ -47,6 +47,7 @@ const createInitialFormData = (data, isCreatingEmployer, isRegisteringAdminClien
 
 const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false, apiEndpointForCreation = '/admin/users', isRegisteringAdminClient = false }) => {
 
+  // Cette prop est CRUCIALE pour activer le mode "Admin Client crée Employé"
   const isCreatingEmployerByAdminClient = initialData.isCreatingEmployerByAdminClient || false;
 
   const [formData, setFormData] = useState(() => createInitialFormData(initialData, isCreatingEmployerByAdminClient, isRegisteringAdminClient));
@@ -56,6 +57,27 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
   const [loadingAdminClientData, setLoadingAdminClientData] = useState(false);
 
 
+  // Nouveaux états pour la validation du mot de passe
+  const [passwordValidation, setPasswordValidation] = useState({
+      length: false,
+      digit: false,
+      specialChar: false,
+      uppercase: false,
+  });
+  const [passwordMatch, setPasswordMatch] = useState(false);
+
+  // Fonction de validation du mot de passe
+  const validatePassword = (password) => {
+      const validations = {
+          length: password.length >= 14,
+          digit: /[0-9]/.test(password),
+          specialChar: /[!?.:\-,&@#$%^*()]/.test(password),
+          uppercase: /[A-Z]/.test(password),
+      };
+      setPasswordValidation(validations);
+      return Object.values(validations).every(Boolean);
+  };
+
   // Effect to re-populate form data for updates or to clear for new general creations.
   useEffect(() => {
     if (isUpdate && initialData.id) {
@@ -63,46 +85,55 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
     } else if (!isUpdate && !isCreatingEmployerByAdminClient && !isRegisteringAdminClient) {
       setFormData(createInitialFormData({}, false, false));
     } else if (!isUpdate && isCreatingEmployerByAdminClient) {
-      setFormData(createInitialFormData({
-          nom_client: initialData.nom_client || '',
-          prenom_client: initialData.prenom_client || '',
-          email: initialData.email || '',
-          telephone: initialData.telephone || '',
-      }, true, false));
+        // Pour la création d'employé, on réinitialise les champs spécifiques à l'employé
+        // mais on garde les informations de l'Admin Client qui seront auto-remplies
+        setFormData(prev => createInitialFormData({
+            ...prev, // Garde nom_entreprise, adresse, admin_client_siret qui viennent du useEffect ci-dessous
+            nom_client: '', // Réinitialise les détails de l'employé
+            prenom_client: '',
+            email: '',
+            password: '',
+            confirmPassword: '',
+            telephone: '',
+        }, true, false));
     } else if (!isUpdate && isRegisteringAdminClient) {
       setFormData(createInitialFormData({
           nom_client: initialData.nom_client || '',
           prenom_client: initialData.prenom_client || '',
           email: initialData.email || '',
           telephone: initialData.telephone || '',
-          siret: initialData.siret || '', // SIRET est requis pour l'enregistrement d'Admin Client
+          siret: initialData.siret || '',
           nom_entreprise: initialData.nom_entreprise || '',
           adresse: initialData.adresse || ''
       }, false, true));
     }
+    // Réinitialiser les validations de mot de passe lors du changement de mode/utilisateur
+    setPasswordValidation({ length: false, digit: false, specialChar: false, uppercase: false });
+    setPasswordMatch(false);
   }, [initialData.id, isUpdate, isCreatingEmployerByAdminClient, isRegisteringAdminClient]);
 
 
-  // Effect specifically for fetching Admin Client data when creating an employee.
+  // EFFECT CRUCIAL : Récupère les données de l'Admin Client connecté pour auto-remplir les champs
   useEffect(() => {
-    if (isCreatingEmployerByAdminClient && !isUpdate) {
+    if (isCreatingEmployerByAdminClient && !isUpdate) { // S'active seulement en mode création d'employé par admin client
       setLoadingAdminClientData(true);
       const fetchAdminClientData = async () => {
         try {
+          // Cette requête va chercher le profil de l'Admin Client actuellement connecté
           const response = await axiosInstance.get('/users/profile');
           const adminClientData = response.data;
 
-          if (adminClientData.nom_entreprise && adminClientData.siret) {
+          if (adminClientData.nom_entreprise && adminClientData.siret && adminClientData.adresse) {
             setFormData(prevData => ({
               ...prevData,
-              nom_entreprise: adminClientData.nom_entreprise,
-              adresse: adminClientData.adresse,
-              siret: '', // L'employé n'a pas de SIRET propre
+              nom_entreprise: adminClientData.nom_entreprise, // Auto-rempli
+              adresse: adminClientData.adresse, // Auto-rempli
+              siret: '', // L'employé n'a pas de SIRET propre, donc vide
               role: 'employer', // Rôle forcé à 'employer'
-              admin_client_siret: adminClientData.siret
+              admin_client_siret: adminClientData.siret // SIRET de l'admin client qui crée l'employé
             }));
           } else {
-            setMessage('Erreur: Les informations de l\'Admin Client (nom d\'entreprise ou SIRET) sont manquantes.');
+            setMessage('Erreur: Les informations de l\'Admin Client (nom d\'entreprise, adresse ou SIRET) sont manquantes dans votre profil.');
           }
         } catch (error) {
           console.error('Erreur lors de la récupération des données de l\'Admin Client:', error.response?.data || error.message);
@@ -113,14 +144,25 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
       };
       fetchAdminClientData();
     }
-  }, [isCreatingEmployerByAdminClient, isUpdate]);
+  }, [isCreatingEmployerByAdminClient, isUpdate]); // Dépendances pour re-déclencher l'effet
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value
-    }));
+    setFormData(prevData => {
+        const newFormData = {
+            ...prevData,
+            [name]: value
+        };
+
+        // Gérer la validation du mot de passe et la correspondance
+        if (name === 'password') {
+            validatePassword(value);
+            setPasswordMatch(value === newFormData.confirmPassword && value.length > 0);
+        } else if (name === 'confirmPassword') {
+            setPasswordMatch(value === newFormData.password && value.length > 0);
+        }
+        return newFormData;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -130,47 +172,66 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
 
     const dataToSend = { ...formData };
 
+    // Validations spécifiques aux mots de passe pour création/update si le champ est rempli
+    if (!isUpdate || dataToSend.password) { // Seulement si c'est une création OU une update avec un nouveau mot de passe
+        const isPasswordValid = validatePassword(dataToSend.password);
+        const passwordsMatch = dataToSend.password === dataToSend.confirmPassword;
+
+        if (!isPasswordValid) {
+            setMessage('Le mot de passe ne respecte pas toutes les contraintes requises (14 caractères, 1 chiffre, 1 caractère spécial, 1 majuscule).');
+            setIsSubmitting(false);
+            return;
+        }
+        if (!passwordsMatch) {
+            setMessage('Les mots de passe ne correspondent pas.');
+            setIsSubmitting(false);
+            return;
+        }
+    }
+
     // Nettoyer dataToSend en fonction du but du formulaire
     if (isCreatingEmployerByAdminClient) {
-        // Pour la création d'employé par un admin client, le backend gère automatiquement
-        // nom_entreprise, siret (à NULL), et admin_client_siret basé sur l'utilisateur authentifié.
-        // Nous n'envoyons donc que les détails personnels de l'employé.
+        // Pour la création d'employé par un admin client:
+        // Le backend est censé déduire nom_entreprise, adresse, role et admin_client_siret
+        // à partir du token de l'admin client connecté.
+        // Donc, ces champs NE DOIVENT PAS être envoyés depuis le frontend.
         delete dataToSend.nom_entreprise;
-        delete dataToSend.siret;
-        delete dataToSend.role;
-        delete dataToSend.admin_client_siret;
+        delete dataToSend.adresse;
+        delete dataToSend.siret; // L'employé n'a pas de SIRET propre
+        delete dataToSend.role; // Le rôle est fixé à 'employer' par le backend pour cette route
+        // dataToSend.admin_client_siret est déjà défini dans formData et sera envoyé si nécessaire par le backend
     } else if (isRegisteringAdminClient) {
-        // Pour l'enregistrement d'un Admin Client, forcer le rôle et s'assurer que siret est présent
         dataToSend.role = 'admin_client';
-        dataToSend.admin_client_siret = null; // Un admin_client n'a pas de admin_client_siret
+        dataToSend.admin_client_siret = null;
         if (!dataToSend.siret || dataToSend.siret.length !== 14) {
             setMessage('Le SIRET est obligatoire et doit contenir 14 chiffres pour un Admin Client.');
             setIsSubmitting(false);
             return;
         }
-    } else {
-        // Pour Super Admin créant n'importe quel utilisateur
+    } else { // Mode Super Admin
         if (dataToSend.role !== 'employer') {
             dataToSend.admin_client_siret = null;
         } else if (dataToSend.role === 'employer' && !dataToSend.admin_client_siret) {
-            dataToSend.admin_client_siret = null;
+            setMessage('Un employé doit être rattaché à un Admin Client via son SIRET.');
+            setIsSubmitting(false);
+            return;
         }
 
         if (dataToSend.role !== 'admin_client') {
             dataToSend.siret = null;
-        } else if (dataToSend.role === 'admin_client' && !dataToSend.siret) {
-            dataToSend.siret = null;
+        } else if (dataToSend.role === 'admin_client' && (!dataToSend.siret || dataToSend.siret.length !== 14)) {
+            setMessage('Le SIRET est obligatoire et doit contenir 14 chiffres pour un Admin Client.');
+            setIsSubmitting(false);
+            return;
         }
     }
 
+    // Supprimer confirmPassword avant l'envoi
+    delete dataToSend.confirmPassword;
+
+    // Pour une mise à jour, si le mot de passe est vide, on le supprime des données à envoyer
     if (isUpdate && !dataToSend.password) {
       delete dataToSend.password;
-    }
-    // Si le mot de passe est vide pour une création, retourner une erreur
-    if (!isUpdate && !dataToSend.password) {
-        setMessage('Le mot de passe est obligatoire pour la création.');
-        setIsSubmitting(false);
-        return;
     }
 
 
@@ -179,7 +240,6 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
       if (isUpdate) {
         response = await axiosInstance.put(`/admin/users/${initialData.id}`, dataToSend);
       } else {
-        // Utilise l'endpoint passé par la prop, qui sera /auth/register pour le nouvel Admin Client
         response = await axiosInstance.post(apiEndpointForCreation, dataToSend);
       }
 
@@ -187,15 +247,23 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
       if (onUserCreated) {
         onUserCreated(response.data);
       }
-      // Vider le formulaire après succès
-      setFormData(createInitialFormData(
-        isCreatingEmployerByAdminClient ? { nom_entreprise: formData.nom_entreprise, adresse: formData.adresse, admin_client_siret: formData.admin_client_siret } : {},
-        isCreatingEmployerByAdminClient,
-        isRegisteringAdminClient
-      ));
+      // Vider le formulaire après succès pour les créations
+      if (!isUpdate) {
+        setFormData(createInitialFormData(
+          isCreatingEmployerByAdminClient ? { nom_entreprise: formData.nom_entreprise, adresse: formData.adresse, admin_client_siret: formData.admin_client_siret } : {},
+          isCreatingEmployerByAdminClient,
+          isRegisteringAdminClient
+        ));
+      }
+      // Réinitialiser les validations de mot de passe après succès
+      setPasswordValidation({ length: false, digit: false, specialChar: false, uppercase: false });
+      setPasswordMatch(false);
+
     } catch (error) {
       console.error(`Erreur lors ${isUpdate ? 'de la modification' : 'de la création'} de l'utilisateur:`, error.response?.data || error.message);
-      setMessage(`Erreur: ${error.response?.data?.message || error.message}`);
+      // Message d'erreur plus spécifique
+      const backendErrorMessage = error.response?.data?.message || error.message;
+      setMessage(`Erreur: ${backendErrorMessage}. ${backendErrorMessage.includes('SIRET') || backendErrorMessage.includes('email') ? 'Le SIRET ou l\'email est peut-être déjà utilisé.' : ''}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -220,8 +288,8 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             onChange={handleChange}
             placeholder="SARL RESTAURENT"
             required
-            readOnly={isCreatingEmployerByAdminClient}
-            className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
+            readOnly={isCreatingEmployerByAdminClient} // Rendu en lecture seule
+            className={isCreatingEmployerByAdminClient ? 'read-only' : ''} // Ajout de la classe pour le style
           />
         </div>
         <div className="form-group">
@@ -236,11 +304,34 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
           <label htmlFor="email">Email:</label>
           <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} placeholder="votre.email@exemple.com" required />
         </div>
-        <div className="form-group">
-          <label htmlFor="password">Mot de passe: {isUpdate && <span className="optional-field">(Laisser vide pour ne pas changer)</span>}</label>
-          <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} placeholder="Votre mot de passe secret"
- required={!isUpdate} />
-        </div>
+        {/* Mot de passe et confirmation de mot de passe - requis pour la création, optionnel pour la modification */}
+        {(!isUpdate || formData.password !== '') && (
+            <>
+                <div className="form-group">
+                    <label htmlFor="password">Mot de passe: {isUpdate && <span className="optional-field">(Laisser vide pour ne pas changer)</span>}</label>
+                    <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} placeholder="Votre mot de passe secret"
+                    required={!isUpdate} />
+                    {/* Indicateurs de validation du mot de passe */}
+                    <div className="password-feedback">
+                        <p className={passwordValidation.length ? 'valid' : 'invalid'}>Minimum 14 caractères</p>
+                        <p className={passwordValidation.digit ? 'valid' : 'invalid'}>Minimum un chiffre</p>
+                        <p className={passwordValidation.specialChar ? 'valid' : 'invalid'}>Minimum un caractère spécial (e.g. !?.:-,&@#$%^*())</p>
+                        <p className={passwordValidation.uppercase ? 'valid' : 'invalid'}>Minimum une majuscule</p>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="confirmPassword">Confirmer le mot de passe :</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirmer votre mot de passe" value={formData.confirmPassword} onChange={handleChange} required={!isUpdate} />
+                    {/* Indicateur de correspondance des mots de passe */}
+                    {(formData.password || formData.confirmPassword) && ( // Afficher si au moins un des champs password est rempli
+                        <p className={passwordMatch ? 'valid' : 'invalid'}>
+                            {passwordMatch ? 'Les mots de passe correspondent' : 'Les mots de passe ne correspondent pas'}
+                        </p>
+                    )}
+                </div>
+            </>
+        )}
+
         <div className="form-group">
           <label htmlFor="telephone">Téléphone:</label>
           <input type="text" id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} placeholder="07XXXXXXXX"
@@ -255,16 +346,30 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
             value={formData.adresse}
             onChange={handleChange}
             placeholder="123 rue de la republique 75010 paris "
-            readOnly={isCreatingEmployerByAdminClient}
-            className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
+            readOnly={isCreatingEmployerByAdminClient} // Rendu en lecture seule
+            className={isCreatingEmployerByAdminClient ? 'read-only' : ''} // Ajout de la classe pour le style
           />
         </div>
         {/* SIRET field:
             - Visible et requis si isRegisteringAdminClient est true.
-            - Caché si l'Admin Client est en train de créer un employé.
+            - Caché si l'Admin Client est en train de créer un employé (car l'employé n'a pas de SIRET propre).
             - Sinon (pour Super Admin), visible et modifiable uniquement si le rôle est 'admin_client'.
         */}
-        {(isRegisteringAdminClient || (!isCreatingEmployerByAdminClient && formData.role === 'admin_client')) && (
+        {/* MODIFICATION ICI : SIRET pour l'employé doit être vide et lecture seule */}
+        {isCreatingEmployerByAdminClient ? (
+            <div className="form-group">
+                <label htmlFor="siret">SIRET (pour Employé):</label>
+                <input
+                    type="text"
+                    id="siret"
+                    name="siret"
+                    value={formData.siret} // Doit être vide pour l'employé
+                    readOnly={true} // TOUJOURS en lecture seule pour l'employé
+                    className="read-only" // Ajout de la classe
+                    placeholder="Non applicable pour un employé"
+                />
+            </div>
+        ) : (isRegisteringAdminClient || formData.role === 'admin_client') && (
             <div className="form-group">
                 <label htmlFor="siret">SIRET (pour Admin Client):</label>
                 <input
@@ -274,16 +379,26 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
                     value={formData.siret}
                     onChange={handleChange}
                     placeholder="55217863900132"
-
                     required={isRegisteringAdminClient || formData.role === 'admin_client'}
-                    readOnly={isCreatingEmployerByAdminClient || (formData.role !== 'admin_client' && !isRegisteringAdminClient)} // ReadOnly si pas admin_client et pas en mode enregistrement
-                    className={(isCreatingEmployerByAdminClient || (formData.role !== 'admin_client' && !isRegisteringAdminClient)) ? 'read-only' : ''}
                 />
             </div>
         )}
 
         {/* Le champ Rôle est masqué si l'Admin Client crée un employé ou si c'est un enregistrement Admin Client */}
-        {!(isCreatingEmployerByAdminClient || isRegisteringAdminClient) && (
+        {/* MODIFICATION ICI : Afficher le rôle 'employer' en lecture seule quand isCreatingEmployerByAdminClient est vrai */}
+        {isCreatingEmployerByAdminClient ? (
+            <div className="form-group">
+                <label htmlFor="role">Rôle:</label>
+                <input
+                    type="text"
+                    id="role"
+                    name="role"
+                    value="employer" // Valeur fixe à "employer"
+                    readOnly // Rendu en lecture seule
+                    className="read-only" // Ajout de la classe
+                />
+            </div>
+        ) : !(isRegisteringAdminClient) ? ( // Si ce n'est pas la création d'employé et pas l'enregistrement Admin Client
           <div className="form-group">
             <label htmlFor="role">Rôle:</label>
             <select id="role" name="role" value={formData.role} onChange={handleChange} required>
@@ -292,9 +407,22 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
               <option value="employer">Employé</option>
             </select>
           </div>
+        ) : ( // Afficher le rôle en lecture seule pour l'enregistrement Admin Client
+            <div className="form-group">
+                <label htmlFor="role">Rôle:</label>
+                <input
+                    type="text"
+                    id="role"
+                    name="role"
+                    value={formData.role} // Sera 'admin_client' en mode enregistrement
+                    readOnly // Rendu en lecture seule
+                    className="read-only" // Ajout de la classe
+                />
+            </div>
         )}
         {/* admin_client_siret field:
-            - Caché si l'Admin Client est en train de créer un employé (le backend gère le rattachement via le token) ou si c'est un enregistrement Admin Client.
+            - Caché si l'Admin Client est en train de créer un employé (le backend gère le rattachement via le token de l'admin client).
+            - Caché si c'est un enregistrement Admin Client.
             - Visible uniquement si le Super Admin relie un employeur à un admin_client existant.
         */}
         {!(isCreatingEmployerByAdminClient || isRegisteringAdminClient) && formData.role === 'employer' && (
@@ -304,20 +432,379 @@ const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false,
           </div>
         )}
     <div className="buttonContainer">
-        <button type="submit" disabled={isSubmitting || loadingAdminClientData} className="buttonSubmit">
+        <button
+            type="submit"
+            disabled={
+                isSubmitting || loadingAdminClientData ||
+                ((!isUpdate || formData.password) && (!passwordMatch || !Object.values(passwordValidation).every(Boolean)))
+            }
+            className="buttonSubmit"
+        >
           {isSubmitting ? 'Envoi en cours...' : (isUpdate ? 'Modifier l\'utilisateur' : 'Créer l\'utilisateur')}
         </button>
         {onCancel && (
           <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
         )}
     </div>
-        {message && <p className="form-message">{message}</p>}
+        {message && <p className={`form-message ${message.includes('succès') ? 'success-message' : 'error-message'}`}>{message}</p>}
       </form>
     </div>
   );
 };
 
 export default UserForm;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // frontend/src/components/UserForm.jsx
+// import React, { useState, useEffect } from 'react';
+// import axiosInstance from '../api/axiosInstance'; // Importe l'instance Axios centralisée
+// import './UserForm.css'; // Assurez-vous que ce fichier CSS existe et est stylisé
+
+// // Helper function to create initial form state based on initialData
+// const createInitialFormData = (data, isCreatingEmployer, isRegisteringAdminClient) => {
+//   const baseData = {
+//     nom_entreprise: data.nom_entreprise || '',
+//     nom_client: data.nom_client || '',
+//     prenom_client: data.prenom_client || '',
+//     email: data.email || '',
+//     password: '', // Password is never pre-filled for security
+//     telephone: data.telephone || '',
+//     adresse: data.adresse || '',
+//     siret: data.siret || '', // SIRET peut être fourni ou non
+//     admin_client_siret: data.admin_client_siret || '' // admin_client_siret peut être fourni ou non
+//   };
+
+//   if (isCreatingEmployer) {
+//     // Mode: Admin Client crée un Employé
+//     return {
+//       ...baseData,
+//       // Ces champs seront pré-remplis par le useEffect ou ignorés par le backend
+//       nom_entreprise: data.nom_entreprise || '',
+//       adresse: data.adresse || '',
+//       siret: '', // L'employé n'a pas de SIRET propre
+//       role: 'employer', // Rôle forcé à 'employer'
+//       admin_client_siret: data.admin_client_siret || ''
+//     };
+//   } else if (isRegisteringAdminClient) {
+//     // Mode: Enregistrement d'un nouvel Admin Client
+//     return {
+//       ...baseData,
+//       role: 'admin_client', // Rôle forcé à 'admin_client'
+//       admin_client_siret: '' // Pas de admin_client_siret pour un admin_client
+//     };
+//   } else {
+//     // Mode: Super Admin crée/met à jour n'importe quel type d'utilisateur
+//     return {
+//       ...baseData,
+//       role: data.role || 'employer' // Rôle par défaut 'employer' si non spécifié
+//     };
+//   }
+// };
+
+
+// const UserForm = ({ onUserCreated, initialData = {}, onCancel, isUpdate = false, apiEndpointForCreation = '/admin/users', isRegisteringAdminClient = false }) => {
+
+//   const isCreatingEmployerByAdminClient = initialData.isCreatingEmployerByAdminClient || false;
+
+//   const [formData, setFormData] = useState(() => createInitialFormData(initialData, isCreatingEmployerByAdminClient, isRegisteringAdminClient));
+
+//   const [message, setMessage] = useState('');
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [loadingAdminClientData, setLoadingAdminClientData] = useState(false);
+
+
+//   // Effect to re-populate form data for updates or to clear for new general creations.
+//   useEffect(() => {
+//     if (isUpdate && initialData.id) {
+//       setFormData(createInitialFormData(initialData, false, false));
+//     } else if (!isUpdate && !isCreatingEmployerByAdminClient && !isRegisteringAdminClient) {
+//       setFormData(createInitialFormData({}, false, false));
+//     } else if (!isUpdate && isCreatingEmployerByAdminClient) {
+//       setFormData(createInitialFormData({
+//           nom_client: initialData.nom_client || '',
+//           prenom_client: initialData.prenom_client || '',
+//           email: initialData.email || '',
+//           telephone: initialData.telephone || '',
+//       }, true, false));
+//     } else if (!isUpdate && isRegisteringAdminClient) {
+//       setFormData(createInitialFormData({
+//           nom_client: initialData.nom_client || '',
+//           prenom_client: initialData.prenom_client || '',
+//           email: initialData.email || '',
+//           telephone: initialData.telephone || '',
+//           siret: initialData.siret || '', // SIRET est requis pour l'enregistrement d'Admin Client
+//           nom_entreprise: initialData.nom_entreprise || '',
+//           adresse: initialData.adresse || ''
+//       }, false, true));
+//     }
+//   }, [initialData.id, isUpdate, isCreatingEmployerByAdminClient, isRegisteringAdminClient]);
+
+
+//   // Effect specifically for fetching Admin Client data when creating an employee.
+//   useEffect(() => {
+//     if (isCreatingEmployerByAdminClient && !isUpdate) {
+//       setLoadingAdminClientData(true);
+//       const fetchAdminClientData = async () => {
+//         try {
+//           const response = await axiosInstance.get('/users/profile');
+//           const adminClientData = response.data;
+
+//           if (adminClientData.nom_entreprise && adminClientData.siret) {
+//             setFormData(prevData => ({
+//               ...prevData,
+//               nom_entreprise: adminClientData.nom_entreprise,
+//               adresse: adminClientData.adresse,
+//               siret: '', // L'employé n'a pas de SIRET propre
+//               role: 'employer', // Rôle forcé à 'employer'
+//               admin_client_siret: adminClientData.siret
+//             }));
+//           } else {
+//             setMessage('Erreur: Les informations de l\'Admin Client (nom d\'entreprise ou SIRET) sont manquantes.');
+//           }
+//         } catch (error) {
+//           console.error('Erreur lors de la récupération des données de l\'Admin Client:', error.response?.data || error.message);
+//           setMessage(`Erreur de chargement des données Admin Client: ${error.response?.data?.message || error.message}`);
+//         } finally {
+//           setLoadingAdminClientData(false);
+//         }
+//       };
+//       fetchAdminClientData();
+//     }
+//   }, [isCreatingEmployerByAdminClient, isUpdate]);
+
+//   const handleChange = (e) => {
+//     const { name, value } = e.target;
+//     setFormData(prevData => ({
+//       ...prevData,
+//       [name]: value
+//     }));
+//   };
+
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     setMessage('');
+//     setIsSubmitting(true);
+
+//     const dataToSend = { ...formData };
+
+//     // Nettoyer dataToSend en fonction du but du formulaire
+//     if (isCreatingEmployerByAdminClient) {
+//         // Pour la création d'employé par un admin client, le backend gère automatiquement
+//         // nom_entreprise, siret (à NULL), et admin_client_siret basé sur l'utilisateur authentifié.
+//         // Nous n'envoyons donc que les détails personnels de l'employé.
+//         delete dataToSend.nom_entreprise;
+//         delete dataToSend.siret;
+//         delete dataToSend.role;
+//         delete dataToSend.admin_client_siret;
+//     } else if (isRegisteringAdminClient) {
+//         // Pour l'enregistrement d'un Admin Client, forcer le rôle et s'assurer que siret est présent
+//         dataToSend.role = 'admin_client';
+//         dataToSend.admin_client_siret = null; // Un admin_client n'a pas de admin_client_siret
+//         if (!dataToSend.siret || dataToSend.siret.length !== 14) {
+//             setMessage('Le SIRET est obligatoire et doit contenir 14 chiffres pour un Admin Client.');
+//             setIsSubmitting(false);
+//             return;
+//         }
+//     } else {
+//         // Pour Super Admin créant n'importe quel utilisateur
+//         if (dataToSend.role !== 'employer') {
+//             dataToSend.admin_client_siret = null;
+//         } else if (dataToSend.role === 'employer' && !dataToSend.admin_client_siret) {
+//             dataToSend.admin_client_siret = null;
+//         }
+
+//         if (dataToSend.role !== 'admin_client') {
+//             dataToSend.siret = null;
+//         } else if (dataToSend.role === 'admin_client' && !dataToSend.siret) {
+//             dataToSend.siret = null;
+//         }
+//     }
+
+//     if (isUpdate && !dataToSend.password) {
+//       delete dataToSend.password;
+//     }
+//     // Si le mot de passe est vide pour une création, retourner une erreur
+//     if (!isUpdate && !dataToSend.password) {
+//         setMessage('Le mot de passe est obligatoire pour la création.');
+//         setIsSubmitting(false);
+//         return;
+//     }
+
+
+//     try {
+//       let response;
+//       if (isUpdate) {
+//         response = await axiosInstance.put(`/admin/users/${initialData.id}`, dataToSend);
+//       } else {
+//         // Utilise l'endpoint passé par la prop, qui sera /auth/register pour le nouvel Admin Client
+//         response = await axiosInstance.post(apiEndpointForCreation, dataToSend);
+//       }
+
+//       setMessage(`Utilisateur ${isUpdate ? 'mis à jour' : 'créé'} avec succès !`);
+//       if (onUserCreated) {
+//         onUserCreated(response.data);
+//       }
+//       // Vider le formulaire après succès
+//       setFormData(createInitialFormData(
+//         isCreatingEmployerByAdminClient ? { nom_entreprise: formData.nom_entreprise, adresse: formData.adresse, admin_client_siret: formData.admin_client_siret } : {},
+//         isCreatingEmployerByAdminClient,
+//         isRegisteringAdminClient
+//       ));
+//     } catch (error) {
+//       console.error(`Erreur lors ${isUpdate ? 'de la modification' : 'de la création'} de l'utilisateur:`, error.response?.data || error.message);
+//       setMessage(`Erreur: ${error.response?.data?.message || error.message}`);
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+//   if (loadingAdminClientData) {
+//     return <div className="user-form-container"><p>Chargement des données de l'Admin Client...</p></div>;
+//   }
+
+//   return (
+//     <div className="user-form-container">
+//       <h3>{isUpdate ? 'Modifier l\'utilisateur' : (isCreatingEmployerByAdminClient ? 'Créer un nouvel employé' : (isRegisteringAdminClient ? 'Enregistrer un nouvel Admin Client' : 'Créer un nouvel utilisateur'))}</h3>
+//       <form onSubmit={handleSubmit} className="user-form">
+//         {/* Nom Entreprise - Auto-rempli et ReadOnly pour la création d'employé par Admin Client, ou éditable pour Super Admin/Nouvel Admin Client */}
+//         <div className="form-group">
+//           <label htmlFor="nom_entreprise">Nom Entreprise:</label>
+//           <input
+//             type="text"
+//             id="nom_entreprise"
+//             name="nom_entreprise"
+//             value={formData.nom_entreprise}
+//             onChange={handleChange}
+//             placeholder="SARL RESTAURENT"
+//             required
+//             readOnly={isCreatingEmployerByAdminClient}
+//             className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
+//           />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="nom_client">{isCreatingEmployerByAdminClient ? 'Nom Employé:' : 'Nom Contact:'}</label>
+//           <input type="text" id="nom_client" name="nom_client" value={formData.nom_client} onChange={handleChange} placeholder="DURANT" required />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="prenom_client">{isCreatingEmployerByAdminClient ? 'Prénom Employé:' : 'Prénom Contact:'}</label>
+//           <input type="text" id="prenom_client" name="prenom_client" value={formData.prenom_client} onChange={handleChange} placeholder="ALEXANDRE" required />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="email">Email:</label>
+//           <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} placeholder="votre.email@exemple.com" required />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="password">Mot de passe: {isUpdate && <span className="optional-field">(Laisser vide pour ne pas changer)</span>}</label>
+//           <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} placeholder="Votre mot de passe secret"
+//  required={!isUpdate} />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="telephone">Téléphone:</label>
+//           <input type="text" id="telephone" name="telephone" value={formData.telephone} onChange={handleChange} placeholder="07XXXXXXXX"
+//  />
+//         </div>
+//         <div className="form-group">
+//           <label htmlFor="adresse">Adresse:</label>
+//           <input
+//             type="text"
+//             id="adresse"
+//             name="adresse"
+//             value={formData.adresse}
+//             onChange={handleChange}
+//             placeholder="123 rue de la republique 75010 paris "
+//             readOnly={isCreatingEmployerByAdminClient}
+//             className={isCreatingEmployerByAdminClient ? 'read-only' : ''}
+//           />
+//         </div>
+//         {/* SIRET field:
+//             - Visible et requis si isRegisteringAdminClient est true.
+//             - Caché si l'Admin Client est en train de créer un employé.
+//             - Sinon (pour Super Admin), visible et modifiable uniquement si le rôle est 'admin_client'.
+//         */}
+//         {(isRegisteringAdminClient || (!isCreatingEmployerByAdminClient && formData.role === 'admin_client')) && (
+//             <div className="form-group">
+//                 <label htmlFor="siret">SIRET (pour Admin Client):</label>
+//                 <input
+//                     type="text"
+//                     id="siret"
+//                     name="siret"
+//                     value={formData.siret}
+//                     onChange={handleChange}
+//                     placeholder="55217863900132"
+
+//                     required={isRegisteringAdminClient || formData.role === 'admin_client'}
+//                     readOnly={isCreatingEmployerByAdminClient || (formData.role !== 'admin_client' && !isRegisteringAdminClient)} // ReadOnly si pas admin_client et pas en mode enregistrement
+//                     className={(isCreatingEmployerByAdminClient || (formData.role !== 'admin_client' && !isRegisteringAdminClient)) ? 'read-only' : ''}
+//                 />
+//             </div>
+//         )}
+
+//         {/* Le champ Rôle est masqué si l'Admin Client crée un employé ou si c'est un enregistrement Admin Client */}
+//         {!(isCreatingEmployerByAdminClient || isRegisteringAdminClient) && (
+//           <div className="form-group">
+//             <label htmlFor="role">Rôle:</label>
+//             <select id="role" name="role" value={formData.role} onChange={handleChange} required>
+//               <option value="super_admin">Super Admin</option>
+//               <option value="admin_client">Admin Client</option>
+//               <option value="employer">Employé</option>
+//             </select>
+//           </div>
+//         )}
+//         {/* admin_client_siret field:
+//             - Caché si l'Admin Client est en train de créer un employé (le backend gère le rattachement via le token) ou si c'est un enregistrement Admin Client.
+//             - Visible uniquement si le Super Admin relie un employeur à un admin_client existant.
+//         */}
+//         {!(isCreatingEmployerByAdminClient || isRegisteringAdminClient) && formData.role === 'employer' && (
+//           <div className="form-group">
+//             <label htmlFor="admin_client_siret">SIRET Admin Client (pour les employés):</label>
+//             <input type="text" id="admin_client_siret" name="admin_client_siret" value={formData.admin_client_siret} onChange={handleChange} />
+//           </div>
+//         )}
+//     <div className="buttonContainer">
+//         <button type="submit" disabled={isSubmitting || loadingAdminClientData} className="buttonSubmit">
+//           {isSubmitting ? 'Envoi en cours...' : (isUpdate ? 'Modifier l\'utilisateur' : 'Créer l\'utilisateur')}
+//         </button>
+//         {onCancel && (
+//           <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>
+//         )}
+//     </div>
+//         {message && <p className="form-message">{message}</p>}
+//       </form>
+//     </div>
+//   );
+// };
+
+// export default UserForm;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //src/components/UserForm.jsx
 // import React, { useState, useEffect } from 'react';
 // import axiosInstance from '../api/axiosInstance'; // Importe l'instance Axios centralisée

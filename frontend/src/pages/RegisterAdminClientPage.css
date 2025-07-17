@@ -1,0 +1,158 @@
+/* frontend/src/pages/RegisterAdminClientPage.css */
+
+.register-admin-client-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f2f5; /* Un fond léger */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.register-form-container {
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 500px; /* Largeur maximale pour le formulaire */
+    box-sizing: border-box;
+}
+
+.register-form-container h2 {
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 20px;
+}
+
+.register-form .form-group {
+    margin-bottom: 20px;
+}
+
+.register-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #34495e;
+    font-size: 1rem;
+}
+
+.register-form input[type="text"],
+.register-form input[type="email"],
+.register-form input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.register-form input[type="text"]:focus,
+.register-form input[type="email"]:focus,
+.register-form input[type="password"]:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
+/* Styles pour les messages de validation du mot de passe */
+.password-feedback {
+    margin-top: 5px;
+}
+
+.password-feedback p {
+    font-size: 0.85em;
+    margin: 2px 0;
+    padding-left: 10px;
+}
+
+.password-feedback p.valid {
+    color: #27ae60; /* Vert pour valide */
+}
+
+.password-feedback p.invalid {
+    color: #e74c3c; /* Rouge pour invalide */
+}
+
+/* Styles pour le message de correspondance des mots de passe */
+p.valid {
+    color: #27ae60; /* Vert pour valide */
+}
+
+p.invalid {
+    color: #e74c3c; /* Rouge pour invalide */
+}
+
+.register-form .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 15px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.register-form .success-message {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 15px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.register-form .form-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px; /* Espace entre les boutons */
+    margin-top: 30px;
+}
+
+.register-form .register-button,
+.register-form .cancel-button {
+    flex: 1; /* Permet aux boutons de prendre l'espace disponible */
+    padding: 12px 25px;
+    border: none;
+    border-radius: 20pt; /* Utilisation de 20pt pour la cohérence */
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-align: center;
+}
+
+.register-form .register-button {
+    background-color: #2ecc71; /* Vert pour l'action principale */
+    color: white;
+}
+
+.register-form .register-button:hover:not(:disabled) {
+    background-color: #27ae60;
+    transform: translateY(-2px);
+}
+
+.register-form .register-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.register-form .cancel-button {
+    background-color: #e74c3c; /* Rouge pour annuler */
+    color: white;
+}
+
+.register-form .cancel-button:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+}
