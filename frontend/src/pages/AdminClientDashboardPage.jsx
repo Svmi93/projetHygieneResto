@@ -80,10 +80,7 @@ const AdminClientDashboardPage = () => {
   // useEffect séparé pour les alertes et la traçabilité qui ont des déclencheurs spécifiques
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Pour les alertes, on veut re-fetch si currentAlert change (ex: on en a dismiss une)
-      // Pour la traçabilité, on veut re-fetch si refreshTraceability change
       fetchAndDisplayAlerts();
-      // Note: TraceabilityRecordsGallery a son propre refreshTrigger, donc pas besoin de re-fetch ici pour elle.
     }
   }, [currentAlert, refreshTraceability, isAuthenticated, user]); // Garder isAuthenticated et user ici pour s'assurer que les appels se font après auth
 
@@ -133,7 +130,6 @@ const AdminClientDashboardPage = () => {
   };
 
   const handleEmployeeCreated = (newEmployee) => {
-    // Si l'employé est créé avec succès, vous pouvez le rafraîchir ici ou re-fetcher la liste
     console.log("Nouvel employé créé:", newEmployee);
     fetchMyEmployees(); // Re-fetch pour s'assurer que la liste est à jour après ajout
   };
@@ -177,12 +173,6 @@ const AdminClientDashboardPage = () => {
   };
 
   const handleEquipmentSaved = (newOrUpdatedEquipment) => {
-    // La logique de mise à jour locale est bonne, mais un re-fetch est plus sûr pour la cohérence
-    // if (newOrUpdatedEquipment.id) {
-    //   setEquipments(prev => prev.map(eq => eq.id === newOrUpdatedEquipment.id ? newOrUpdatedEquipment : eq));
-    // } else {
-    //   setEquipments(prev => [...prev, newOrUpdatedEquipment]);
-    // }
     fetchEquipments(); // Re-fetch pour s'assurer que la liste est à jour
   };
 
@@ -211,7 +201,7 @@ const AdminClientDashboardPage = () => {
       const fetchedAlerts = await getMyAlerts();
       setAlerts(fetchedAlerts);
       const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
-      if (newAlert && !currentAlert) { // Ne définir que si une nouvelle alerte non lue existe et qu'il n'y a pas déjà une alerte affichée
+      if (newAlert && !currentAlert) {
         setCurrentAlert(newAlert);
       }
     } catch (error) {
@@ -223,8 +213,6 @@ const AdminClientDashboardPage = () => {
   const employeeFormInitialData = adminClientProfile ? {
     admin_client_id: adminClientProfile.id,
     isCreatingEmployeeByAdminClient: true
-    // Vous pourriez aussi passer le SIRET ici si nécessaire pour le formulaire
-    // admin_client_siret: adminClientProfile.siret // Si UserForm en a besoin
   } : {
     isCreatingEmployeeByAdminClient: true
   };
@@ -406,11 +394,22 @@ const AdminClientDashboardPage = () => {
         </div>
       )
     }
-    // L'entrée 'Gérer les Clients' a été supprimée comme demandé.
   ];
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
+      {/* Affichage conditionnel du logo de l'entreprise */}
+      {isAuthenticated && user && user.logoUrl && (
+        <div className="dashboard-logo-container mb-6">
+          <img
+            src={user.logoUrl}
+            alt="Logo de l'entreprise"
+            className="company-dashboard-logo rounded-md shadow-sm"
+            style={{ maxWidth: '180px', maxHeight: '180px' }}
+          />
+        </div>
+      )}
+
       <h2 className="welcome-message text-3xl font-bold text-gray-900 mb-6">Tableau de bord Admin Client</h2>
       <p className="dashboard-intro text-gray-700 mb-8">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements, leurs relevés de température et la traçabilité.</p>
 
@@ -427,6 +426,7 @@ const AdminClientDashboardPage = () => {
 };
 
 export default AdminClientDashboardPage;
+
 
 
 

@@ -2,7 +2,7 @@
 const { getConnection } = require('../config/db');
 // Assurez-vous que le chemin vers votre fichier d'initialisation Firebase est correct.
 // Si vous avez un fichier comme 'backend/src/config/firebaseAdmin.js' qui exporte l'instance 'admin' déjà initialisée.
-const admin = require('firebase-admin'); // Importez l'instance admin, mais NE L'INITIALISEZ PAS ICI
+const admin = require('../config/firebaseAdmin'); // <--- MODIFIEZ CETTE LIGNE
 
 // Si vous avez un fichier de configuration Firebase centralisé qui initialise admin,
 // vous devriez l'importer comme ceci:

@@ -1,27 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-// IMPORTANT: Assurez-vous d'importer le middleware d'authentification ici
-const { authenticateToken } = require('../middleware/auth'); // <--- AJOUTEZ CETTE LIGNE
+const { authenticateToken } = require('../middleware/auth'); // IMPORTANT: Assurez-vous d'importer le middleware d'authentification ici
+const multer = require('multer'); // Importez multer
 
-// Route pour l'enregistrement d'un nouvel utilisateur
-router.post('/register', authController.register);
+// Configurez multer pour le stockage en mémoire.
+// Firebase Storage a besoin du buffer du fichier, donc le stockage en mémoire est idéal.
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Route pour l'enregistrement d'un nouvel utilisateur avec upload de logo
+// 'logo' doit correspondre au nom de l'input de type file dans votre formulaire frontend.
+router.post('/register', upload.single('logo'), authController.register);
 
 // Route pour la connexion de l'utilisateur
 router.post('/login', authController.login);
 
-// NOUVELLE ROUTE : Route pour vérifier la validité du token
-// Si authenticateToken passe, le token est valide. req.user sera peuplé.
-router.get('/verify-token', authenticateToken, (req, res) => {
-    // Si nous arrivons ici, le token a été validé par le middleware authenticateToken.
-    // Nous renvoyons simplement les informations de l'utilisateur contenues dans le token.
-    res.status(200).json({
-        message: 'Token valide',
-        user: req.user // Contient les infos extraites du token (id, email, role, etc.)
-    });
-});
+// Route pour vérifier la validité du token et récupérer les informations complètes de l'utilisateur
+// authenticateToken valide le token et peuple req.user avec le payload du JWT.
+// authController.verifyToken utilise ensuite req.user.id pour récupérer le profil complet depuis la DB.
+router.get('/verify-token', authenticateToken, authController.verifyToken);
 
 module.exports = router;
+
 
 
 

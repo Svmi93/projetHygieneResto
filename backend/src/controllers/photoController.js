@@ -1,20 +1,19 @@
 // backend/src/controllers/photoController.js
 const { getConnection } = require('../config/db');
-const admin = require('firebase-admin'); // Importe Firebase Admin SDK
+// IMPORTANT : Importez l'instance 'admin' déjà initialisée depuis votre fichier de configuration centralisé.
+// Assurez-vous que le chemin est correct par rapport à ce fichier.
+const admin = require('../config/firebaseAdmin'); // <--- C'EST LA LIGNE CLÉ MODIFIÉE
 
-// IMPORTANT: Configurez Firebase Admin SDK ici.
-// Remplacez par le chemin réel de votre fichier de clé de compte de service Firebase
-// et l'ID de votre projet Firebase.
-// Une fois configuré, vous pouvez supprimer le bloc de code "Placeholder pour `bucket`" ci-dessous.
+// Supprimez TOUTES les lignes suivantes si elles existent dans ce fichier,
+// car elles causent l'erreur DUPLICATE_APP :
+// const serviceAccount = require('../../firebase-admin-keys/hygiene1-664ad-firebase-adminsdk.json');
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+//   storageBucket: 'hygiene1-664ad.appspot.com'
+// });
 
-const serviceAccount = require('../../firebase-admin-keys/hygiene1-664ad-firebase-adminsdk.json'); // Chemin et nom de fichier corrigés
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'hygiene1-664ad.appspot.com' // Utilisez l'ID de votre projet Firebase
-});
-const bucket = admin.storage().bucket(); // La déclaration de 'bucket' est ici.
-
-// Le bloc de code "Placeholder pour `bucket`" a été supprimé pour éviter la double déclaration.
+// La déclaration de 'bucket' est correcte ici si 'admin' est bien l'instance initialisée.
+const bucket = admin.storage().bucket();
 
 
 /**
@@ -193,9 +192,10 @@ exports.deletePhoto = async (req, res) => {
             try {
                 const url = new URL(filePathToDelete);
                 // Extraire le chemin du fichier du bucket à partir de l'URL Firebase Storage
+                // Le chemin est après '/o/' et avant '?'
                 const pathInBucket = url.pathname.substring(url.pathname.indexOf('/o/') + 3, url.pathname.indexOf('?')).replace(/%2F/g, '/');
                 await bucket.file(pathInBucket).delete();
-                console.log(`Image supprimée de Firebase Storage: ${pathInBucket}`);
+                console.log(`Fichier ${pathInBucket} supprimé de Firebase Storage.`);
             } catch (err) {
                 console.warn(`Impossible de supprimer l'image de Firebase Storage: ${filePathToDelete}`, err.message);
                 // Ne pas bloquer la réponse même si la suppression du fichier échoue

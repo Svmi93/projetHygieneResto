@@ -1,20 +1,45 @@
 // frontend/src/components/HomePage.jsx
 import React from 'react';
-import './HomePage.css'; // Assurez-vous que ce chemin est correct
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext'; // Importe useAuth pour accéder aux infos utilisateur
+import './HomePage.css';
 
-// HomePage n'a plus besoin de props liées aux formulaires,
-// car les formulaires sont maintenant gérés par leurs propres routes.
-function HomePage() {
-  const apiName = "HYGIE-RESTO"; // <--- REMPLACEZ PAR LE NOM DE VOTRE API
+function HomePage({ getDashboardPath }) { // getDashboardPath est toujours nécessaire ici
+  const { user, isAuthenticated } = useAuth(); // Récupère l'utilisateur et l'état d'authentification
+  const apiName = "HYGIE-SECURITE-RESTO HACCP";
+
+  // Détermine le logo à afficher : si authentifié, si user existe, si c'est un admin_client ou employer, et si logoUrl existe
+  const displayLogo = isAuthenticated && user && (user.role === 'admin_client' || user.role === 'employer') && user.logoUrl;
 
   return (
     <div className="home-page-container">
       <>
         <div className="home-page-header">
-          {/* Vous pouvez insérer votre logo ici. Par exemple: */}
-          <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
-          <h1>Bienvenue sur {apiName} : L'Hygiène et la Sécurité Simplifiées pour la Restauration</h1>
-          <p className="subtitle">Préparez-vous à chaque contrôle, sans stress.</p>
+          {/* Affiche le logo de l'entreprise si l'utilisateur est connecté et qu'il a un logo */}
+          {displayLogo ? (
+            <img src={user.logoUrl} alt="Logo de l'entreprise" className="company-logo" />
+          ) : (
+            // Sinon, affiche le logo par défaut de l'API
+            <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+          )}
+
+          {/* Contenu conditionnel basé sur l'authentification */}
+          {isAuthenticated ? (
+            <>
+              <h1>Bienvenue de retour, {user?.prenom} !</h1>
+              <p className="subtitle">Explorez les dernières mises à jour ou accédez à votre tableau de bord.</p>
+              <div className="action-buttons mt-4">
+                <Link to={getDashboardPath(user?.role)} className="cta-button">
+                  Aller à mon Tableau de bord
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1>Bienvenue sur {apiName} : L'Hygiène et la Sécurité Simplifiées pour la Restauration</h1>
+              <p className="subtitle">Préparez-vous à chaque contrôle, sans stress.</p>
+            </>
+          )}
         </div>
 
         <section className="intro-section">
@@ -23,7 +48,7 @@ function HomePage() {
           </p>
         </section>
 
-        <hr /> {/* Ligne de séparation */}
+        <hr />
 
         <section className="features-section">
           <h2>Comment {apiName} Révolutionne votre Quotidien :</h2>
@@ -64,7 +89,7 @@ function HomePage() {
           </div>
         </section>
 
-        <hr /> {/* Ligne de séparation */}
+        <hr />
 
         <section className="promise-section">
           <h2>Notre Promesse : La Sérénité au Quotidien</h2>
@@ -85,6 +110,9 @@ function HomePage() {
 }
 
 export default HomePage;
+
+
+
 
 
 

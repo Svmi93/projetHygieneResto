@@ -3,7 +3,7 @@ import React from 'react';
 // Assurez-vous que 'confidentialite.css' se trouve dans le MÊME répertoire que ce fichier Confidentialite.jsx
 import './Confidentialite.css'; 
 
-const Confidentialite = () => {
+function Confidentialite  ()  {
     return (
         <main className="container py-8">
             <h1 className="text-4xl mb-6 text-center text-blue-800 font-bold">Avis de confidentialité</h1>

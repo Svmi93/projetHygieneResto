@@ -19,6 +19,7 @@ services:
       DATABASE: ${DATABASE}
       DB_PORT: 3306 # IMPORTANT: This is the INTERNAL port of the MySQL container (standard 3306)
       JWT_SECRET: ${JWT_SECRET}
+      TZ: Europe/Paris # <--- AJOUTE CETTE LIGNE POUR DÉFINIR LE FUSEAU HORAIRE
     env_file:
       - ./backend/.env # Path to your .env file relative to docker-compose.yml
     depends_on:
@@ -27,8 +28,6 @@ services:
     restart: always
     volumes:
       - ./backend:/usr/src/app # Mounts your backend source code
-      # Remove the problematic line: - /usr/src/app/node_modules
-      # Let the Dockerfile's npm install handle node_modules inside the container during build
     networks:
       - app-network
     healthcheck: # <-- NOUVELLE SECTION AJOUTÉE POUR LE SERVICE API
@@ -49,6 +48,7 @@ services:
       MYSQL_USER: ${USERNAME}
       MYSQL_PASSWORD: ${PASSWORD}
       MYSQL_TCP_BIND_ADDRESS: 0.0.0.0 # <--- Crucial: Allows connections from other Docker containers
+      TZ: Europe/Paris # <--- AJOUTE CETTE LIGNE AUSSI POUR LA BASE DE DONNÉES
     ports:
       - "${DB_PORT}:3306" # Maps a host port (from .env) to MySQL's internal port 3306
     volumes:
@@ -72,6 +72,7 @@ services:
       PMA_PORT: 3306
       MYSQL_ROOT_PASSWORD: ${PASSWORD} # Uses the same root password for phpMyAdmin login
       PMA_ARBITRARY: 1 # Allows connecting to other servers (useful for multiple DBs, but not strictly needed here)
+      TZ: Europe/Paris # <--- AJOUTE CETTE LIGNE POUR PHPMyAdmin AUSSI
     ports:
       - "8080:80" # Maps host port 8080 to phpMyAdmin's internal web server port 80
     depends_on:
@@ -90,6 +91,106 @@ volumes:
 networks:
   app-network:
     driver: bridge # Defines a custom bridge network for internal communication
+
+
+
+
+
+
+
+
+# # docker-compose.yml
+
+# services:
+#   # Service for your Node.js API
+#   api:
+#     build:
+#       context: ./backend # Path to your backend folder relative to this docker-compose.yml
+#       dockerfile: Dockerfile
+#     container_name: hygieneresto_api
+#     ports:
+#       - "5001:5001" # Maps host port 5001 to API container port 5001
+#     environment:
+#       # Pass your .env variables from the host to the container
+#       NODE_ENV: ${NODE_ENV:-development}
+#       PORT: 5001 # The port your Express API listens on INSIDE the container
+#       HOST: db # IMPORTANT: This is the database service name in Docker Compose
+#       USERNAME: ${USERNAME}
+#       PASSWORD: ${PASSWORD}
+#       DATABASE: ${DATABASE}
+#       DB_PORT: 3306 # IMPORTANT: This is the INTERNAL port of the MySQL container (standard 3306)
+#       JWT_SECRET: ${JWT_SECRET}
+#     env_file:
+#       - ./backend/.env # Path to your .env file relative to docker-compose.yml
+#     depends_on:
+#       db:
+#         condition: service_healthy # The API will only start if the DB is healthy
+#     restart: always
+#     volumes:
+#       - ./backend:/usr/src/app # Mounts your backend source code
+#       # Remove the problematic line: - /usr/src/app/node_modules
+#       # Let the Dockerfile's npm install handle node_modules inside the container during build
+#     networks:
+#       - app-network
+#     healthcheck: # <-- NOUVELLE SECTION AJOUTÉE POUR LE SERVICE API
+#       test: ["CMD", "curl", "-f", "http://localhost:5001/"] # Teste si l'API répond sur sa route de test
+#       interval: 15s # Vérifie toutes les 10 secondes
+#       timeout: 5s   # Timeout de 5 secondes pour le test
+#       retries: 5    # 5 tentatives avant de marquer comme "unhealthy"
+#       start_period: 45s # Attendre 30s avant de commencer les tests (pour laisser le temps à Node.js de démarrer)
+
+#   # Service for the MySQL database
+#   db:
+#     image: mysql:8.0
+#     container_name: hygieneresto_db
+#     restart: always
+#     environment:
+#       MYSQL_ROOT_PASSWORD: ${PASSWORD}
+#       MYSQL_DATABASE: ${DATABASE}
+#       MYSQL_USER: ${USERNAME}
+#       MYSQL_PASSWORD: ${PASSWORD}
+#       MYSQL_TCP_BIND_ADDRESS: 0.0.0.0 # <--- Crucial: Allows connections from other Docker containers
+#     ports:
+#       - "${DB_PORT}:3306" # Maps a host port (from .env) to MySQL's internal port 3306
+#     volumes:
+#       - db_data:/var/lib/mysql # Persistent storage for MySQL data
+#       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql # Path for your initial SQL script
+#     healthcheck: # Checks if the database is running and ready
+#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${PASSWORD}"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#       start_period: 30s
+#     networks:
+#       - app-network
+
+#   # Service for phpMyAdmin
+#   phpmyadmin:
+#     image: phpmyadmin/phpmyadmin
+#     container_name: hygieneresto_phpmyadmin
+#     environment:
+#       PMA_HOST: db # Connects to the 'db' service
+#       PMA_PORT: 3306
+#       MYSQL_ROOT_PASSWORD: ${PASSWORD} # Uses the same root password for phpMyAdmin login
+#       PMA_ARBITRARY: 1 # Allows connecting to other servers (useful for multiple DBs, but not strictly needed here)
+#     ports:
+#       - "8080:80" # Maps host port 8080 to phpMyAdmin's internal web server port 80
+#     depends_on:
+#       db:
+#         condition: service_healthy # Ensures phpMyAdmin starts only after the DB is healthy
+#     networks:
+#       - app-network
+
+# # Definition of named volumes for data persistence
+# # This section must appear only ONCE at the top-level of the YAML file.
+# volumes:
+#   db_data: # Declares a named volume for the database data
+
+# # Definition of the Docker network
+# # This section must appear only ONCE at the top-level of the YAML file.
+# networks:
+#   app-network:
+#     driver: bridge # Defines a custom bridge network for internal communication
 
 
 # # docker-compose.yml

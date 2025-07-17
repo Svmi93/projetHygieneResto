@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import './RegisterAdminClientPage.css'; // Assurez-vous que ce chemin est correct
+import './RegisterAdminClientPage.css';
 
 function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
     const [formData, setFormData] = useState({
@@ -14,10 +14,11 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
         adresse: '',
         siret: '',
         password: '',
-        confirmPassword: '', // Nouveau champ pour la confirmation du mot de passe
+        confirmPassword: '',
         role: 'admin_client',
         admin_client_siret: ''
     });
+    const [logoFile, setLogoFile] = useState(null); // Nouveau state pour le fichier logo
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [passwordValidation, setPasswordValidation] = useState({
@@ -27,17 +28,16 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
         uppercase: false,
     });
     const [passwordMatch, setPasswordMatch] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false); // État pour la soumission
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { register } = useAuth();
     const navigate = useNavigate();
 
-    // Fonction de validation du mot de passe
     const validatePassword = (password) => {
         const validations = {
             length: password.length >= 14,
             digit: /[0-9]/.test(password),
-            specialChar: /[!?.:\-,&@#$%^*()]/.test(password), // Ajout de quelques caractères spéciaux courants
+            specialChar: /[!?.:\-,&@#$%^*()]/.test(password),
             uppercase: /[A-Z]/.test(password),
         };
         setPasswordValidation(validations);
@@ -59,13 +59,16 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
         });
     };
 
+    const handleFileChange = (e) => {
+        setLogoFile(e.target.files[0]); // Met à jour le state avec le fichier sélectionné
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccessMessage('');
-        setIsSubmitting(true); // Début de la soumission
+        setIsSubmitting(true);
 
-        // Validation frontend avant envoi
         const isPasswordValid = validatePassword(formData.password);
         const passwordsMatch = formData.password === formData.confirmPassword;
 
@@ -84,12 +87,26 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
             setIsSubmitting(false);
             return;
         }
+        if (!logoFile) {
+            setError('Veuillez télécharger le logo de votre entreprise.');
+            setIsSubmitting(false);
+            return;
+        }
+
 
         try {
-            const dataToSend = { ...formData };
-            delete dataToSend.confirmPassword; // Ne pas envoyer confirmPassword au backend
+            // Créer un objet FormData pour envoyer les données et le fichier
+            const dataToSend = new FormData();
+            for (const key in formData) {
+                if (key !== 'confirmPassword') { // Ne pas envoyer confirmPassword
+                    dataToSend.append(key, formData[key]);
+                }
+            }
+            dataToSend.append('logo', logoFile); // Ajoute le fichier logo sous la clé 'logo'
 
+            // Appeler la fonction register qui devra gérer l'envoi de FormData
             const result = await register(dataToSend);
+
             if (result.success) {
                 setSuccessMessage('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.');
                 if (onAdminClientRegistered) {
@@ -97,15 +114,13 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                 }
                 navigate('/login', { replace: true });
             } else {
-                // Utiliser le message d'erreur du backend s'il existe, sinon un message générique
                 setError(result.message || 'Échec de l\'enregistrement. Vérifiez les informations.');
             }
         } catch (err) {
             console.error('Erreur lors de l\'enregistrement de l\'Admin Client:', err);
-            // Afficher le message d'erreur du backend ou un message plus spécifique
             setError(err.response?.data?.message || 'Une erreur inattendue est survenue lors de l\'enregistrement. Le SIRET ou l\'email est peut-être déjà utilisé.');
         } finally {
-            setIsSubmitting(false); // Fin de la soumission
+            setIsSubmitting(false);
         }
     };
 
@@ -143,9 +158,13 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                         <input type="text" id="siret" name="siret" value={formData.siret} onChange={handleChange} required minLength="14" maxLength="14" />
                     </div>
                     <div className="form-group">
+                        <label htmlFor="logo">Logo de l'entreprise (PNG, JPG) :</label>
+                        <input type="file" id="logo" name="logo" accept=".png, .jpg, .jpeg" onChange={handleFileChange} required />
+                        {logoFile && <p className="text-sm text-gray-600 mt-1">Fichier sélectionné : {logoFile.name}</p>}
+                    </div>
+                    <div className="form-group">
                         <label htmlFor="password">Mot de passe :</label>
                         <input type="password" id="password" name="password" placeholder="Votre mot de passe secret" value={formData.password} onChange={handleChange} required />
-                        {/* Indicateurs de validation du mot de passe */}
                         <div className="password-feedback">
                             <p className={passwordValidation.length ? 'valid' : 'invalid'}>Minimum 14 caractères</p>
                             <p className={passwordValidation.digit ? 'valid' : 'invalid'}>Minimum un chiffre</p>
@@ -156,7 +175,6 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                     <div className="form-group">
                         <label htmlFor="confirmPassword">Confirmer le mot de passe :</label>
                         <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirmer votre mot de passe" value={formData.confirmPassword} onChange={handleChange} required />
-                        {/* Indicateur de correspondance des mots de passe */}
                         {formData.confirmPassword.length > 0 && (
                             <p className={passwordMatch ? 'valid' : 'invalid'}>
                                 {passwordMatch ? 'Les mots de passe correspondent' : 'Les mots de passe ne correspondent pas'}
@@ -168,7 +186,7 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                     {successMessage && <p className="success-message">{successMessage}</p>}
 
                     <div className="form-actions">
-                        <button type="submit" className="register-button" disabled={isSubmitting || !passwordMatch || !Object.values(passwordValidation).every(Boolean)}>
+                        <button type="submit" className="register-button" disabled={isSubmitting || !passwordMatch || !Object.values(passwordValidation).every(Boolean) || !logoFile}>
                             {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
                         </button>
                         {onCancel && <button type="button" onClick={onCancel} className="cancel-button">Annuler</button>}
