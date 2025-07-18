@@ -12,7 +12,7 @@
 
 .login-form-container{
 
-      width: 30%;
+      width: 50%;
 
 }
 
@@ -36,7 +36,7 @@
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 400px;
+  
 }
 
 .form-group {
@@ -67,7 +67,7 @@
 }
 
 .submit-button {
-  background-color: #61dafb;
+  background-color: #66fb61;
   color: white;
   border: none;
   padding: 12px 25px;
@@ -84,7 +84,7 @@
 
 
 .submit-button:hover {
-  background-color: #4fa3d1;
+  background-color: #18445c;
   transform: translateY(-2px);
 }
 
@@ -147,6 +147,8 @@
 
 .form-actions{
   display: flex;
+  align-items: center !important;
+  justify-content: space-around !important;
 }
 
 
