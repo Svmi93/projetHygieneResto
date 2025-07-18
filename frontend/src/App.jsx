@@ -1,5 +1,5 @@
 // frontend/src/App.jsx
-import React from 'react'; // useState et useEffect ne sont plus nécessaires s'ils sont supprimés du corps de App
+import React from 'react';
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
 // VOS IMPORTS DE PAGES ET COMPOSANTS EXISTANTS
@@ -11,46 +11,37 @@ import TemperatureRecordsPage from './pages/TemperatureRecordsPage';
 import RegisterAdminClientPage from './pages/RegisterAdminClientPage';
 import PrivateRoute from './components/PrivateRoute';
 import HomePage from './components/HomePage'; // Votre HomePage
+import Confidentialite from './pages/Confidentialite'; // Assurez-vous que le nom du fichier est Confidentialite.jsx
 
 import './App.css'; // Assurez-vous que cette ligne est présente
 
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './context/AuthContext'; // Importe le AuthContext
 
 function App() {
+    // Déstructure les états et fonctions d'authentification de AuthContext
     const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
-    // CES ÉTATS SONT SUPPRIMÉS : Les routes géreront l'affichage des formulaires.
-    // const [showLoginForm, setShowLoginForm] = useState(false);
-    // const [showRegisterForm, setShowRegisterForm] = useState(false);
-
-    // CE useEffect EST SUPPRIMÉ COMPLETEMENT : Les <Navigate> dans les Routes gèrent déjà cela.
-    /*
-    useEffect(() => {
-        // ... (code supprimé)
-    }, [isAuthenticated, user, authLoading, navigate, location.pathname]);
-    */
-
+    // Gestionnaire pour l'enregistrement réussi d'un client administrateur
     const handleAdminClientRegistered = (newAdminClient) => {
-        // alert('Admin Client enregistré avec succès ! Vous pouvez maintenant vous connecter.'); // Utilisez une modale personnalisée au lieu d'alert
-        console.log('Nouvel Admin Client enregistré:', newAdminClient);
-        // Redirige directement vers la page de connexion après l'inscription réussie
+        console.log('Nouveau client administrateur enregistré :', newAdminClient);
         navigate('/login', { replace: true });
     };
 
+    // Gestionnaire pour la déconnexion de l'utilisateur
     const handleLogout = () => {
-        logout(); // Appelle la fonction logout du contexte (qui nettoie le localStorage)
-        navigate('/', { replace: true }); // Redirige vers la page d'accueil après la déconnexion
+        logout();
+        navigate('/', { replace: true });
     };
 
-    // CES FONCTIONS SONT SIMPLIFIÉES pour simplement naviguer
+    // Fonctions de navigation pour les formulaires de connexion et d'inscription
     const openLoginForm = () => {
         navigate('/login', { replace: true });
     };
 
     const closeLoginForm = () => {
-        navigate('/', { replace: true }); // Redirige vers la page d'accueil si on ferme le formulaire de connexion
+        navigate('/', { replace: true });
     };
 
     const openRegisterForm = () => {
@@ -58,14 +49,15 @@ function App() {
     };
 
     const closeRegisterForm = () => {
-        navigate('/', { replace: true }); // Redirige vers la page d'accueil si on ferme le formulaire d'inscription
+        navigate('/', { replace: true });
     };
 
+    // Affiche un écran de chargement pendant que le statut d'authentification est déterminé
     if (authLoading) {
         return <div className="loading-screen">Chargement de l'authentification...</div>;
     }
 
-    // Fonction utilitaire pour déterminer le chemin du tableau de bord par rôle
+    // Fonction utilitaire pour déterminer le chemin du tableau de bord en fonction du rôle de l'utilisateur
     const getDashboardPath = (role) => {
         switch (role) {
             case 'admin_client':
@@ -75,7 +67,7 @@ function App() {
             case 'super_admin':
                 return '/super-admin-dashboard';
             default:
-                return '/'; // Fallback pour les rôles inconnus ou non définis
+                return '/'; // Chemin de secours pour les rôles inconnus ou indéfinis
         }
     };
 
@@ -83,27 +75,39 @@ function App() {
         <div className="App">
             <header className="App-header">
                 <div className="logo">
-                    <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+                    {/* Utilise Link pour naviguer vers HomePage sans rechargement complet de la page */}
+                    <Link to="/" aria-label="Retour à la page d'accueil">
+                        <img src="./src/assets/image/logo_1.png" alt="Logo de l'API" className="home-page-logo" />
+                    </Link>
                 </div>
                 <nav className="main-nav">
-                    {!isAuthenticated ? (
+                    {/* Rendu conditionnel basé sur l'état isAuthenticated */}
+                    {isAuthenticated ? (
+                        // Si l'utilisateur est authentifié, affiche les informations de l'utilisateur et les boutons de tableau de bord/déconnexion
+                        <div className="auth-info-and-buttons">
+                            {/* Affiche le prénom et le nom de l'utilisateur si disponibles */}
+                            {user && (
+                                <span className="user-greeting">
+                                    Bonjour, {user.prenom} {user.nom} !
+                                </span>
+                            )}
+                            {/* Lien vers le tableau de bord spécifique de l'utilisateur en fonction du rôle */}
+                            <Link
+                                to={getDashboardPath(user?.role)}
+                                className="nav-button dashboard-button"
+                            >
+                                Tableau de bord
+                            </Link>
+                            {/* Lien vers la page des relevés de température */}
+                            <Link to="/temperature-records" className="nav-link">Relevés de Température</Link>
+                            {/* Bouton de déconnexion */}
+                            <button onClick={handleLogout} className="logout-button">Déconnexion</button>
+                        </div>
+                    ) : (
+                        // Si l'utilisateur n'est pas authentifié, affiche les boutons de connexion et d'inscription
                         <div className="auth-buttons">
                             <button onClick={openLoginForm} className="nav-button">Connexion</button>
                             <button onClick={openRegisterForm} className="nav-button">Enregistrer un nouveau compte</button>
-                        </div>
-                    ) : (
-                        <div className="dashboard-nav">
-                            {user?.role === 'admin_client' && (
-                                <Link to="/admin-client-dashboard" className="nav-link">Tableau de bord Admin Client</Link>
-                            )}
-                            {user?.role === 'employer' && (
-                                <Link to="/employee-dashboard" className="nav-link">Tableau de bord Employé</Link>
-                            )}
-                            {user?.role === 'super_admin' && (
-                                <Link to="/super-admin-dashboard" className="nav-link">Tableau de bord Super Admin</Link>
-                            )}
-                            <Link to="/temperature-records" className="nav-link">Relevés de Température</Link>
-                            <button onClick={handleLogout} className="logout-button">Déconnexion</button>
                         </div>
                     )}
                 </nav>
@@ -111,38 +115,32 @@ function App() {
 
             <main>
                 <Routes>
-                    {/* Route pour la page d'accueil */}
-                    <Route path="/" element={
-                        isAuthenticated ? (
-                            // Si authentifié, redirige vers le dashboard approprié
-                            <Navigate to={getDashboardPath(user?.role)} replace />
-                        ) : (
-                            // Si non authentifié, affiche la HomePage statique
-                            <HomePage /> // HomePage ne reçoit plus de props de formulaire ici
-                        )
-                    } />
+                    {/* MODIFIÉ : La route '/' rend toujours HomePage. HomePage gérera l'affichage conditionnel. */}
+                    <Route
+                        path="/"
+                        element={<HomePage isAuthenticated={isAuthenticated} user={user} getDashboardPath={getDashboardPath} />}
+                    />
 
                     {/* Route pour la page de connexion */}
                     <Route path="/login" element={
                         isAuthenticated ? (
-                            // Si authentifié, redirige vers le dashboard
                             <Navigate to={getDashboardPath(user?.role)} replace />
                         ) : (
-                            // Si non authentifié, affiche le LoginPage
                             <LoginPage onCancel={closeLoginForm} />
                         )
                     } />
 
-                    {/* Route pour la page d'enregistrement */}
+                    {/* Route pour la page d'inscription */}
                     <Route path="/register-admin-client" element={
                         isAuthenticated ? (
-                            // Si authentifié, redirige vers le dashboard
                             <Navigate to={getDashboardPath(user?.role)} replace />
                         ) : (
-                            // Si non authentifié, affiche le RegisterAdminClientPage
                             <RegisterAdminClientPage onAdminClientRegistered={handleAdminClientRegistered} onCancel={closeRegisterForm} />
                         )
                     } />
+
+                    {/* Route pour la page de politique de confidentialité - VÉRIFIEZ QUE LE CHEMIN EST BIEN '/Confidentialite' */}
+                    <Route path="/Confidentialite" element={<Confidentialite />} />
 
                     {/* Routes protégées par rôle */}
                     <Route path="/admin-client-dashboard" element={<PrivateRoute role="admin_client"><AdminClientDashboardPage /></PrivateRoute>} />
@@ -154,11 +152,42 @@ function App() {
                     <Route path="*" element={<div>404 - Page non trouvée</div>} />
                 </Routes>
             </main>
+            <section className='end-page'>
+                <footer className="App-footer bg-gray-800 text-white py-6 mt-8">
+                    <div className="down container text-center text-sm">
+                        <menubar className="bg-white shadow-sm py-4">
+                            <div className="container-flex flex-col md:flex-row justify-between items-center">
+                                <nav className="menubar-nav-href flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-2 text-sm font-medium">
+                                    <a href="/demander-demo.html" className="text-gray-700 hover:text-gray-900">Demander une démo</a>
+                                    <a href="/essai-gratuit.html" className="text-gray-700 hover:text-gray-900">Essai gratuit</a>
+                                    <a href="/fonctionnalites.html" className="text-gray-700 hover:text-gray-900">Fonctionnalités</a>
+                                    <a href="/secteur.html" className="text-gray-700 hover:text-gray-900">Secteur</a>
+                                    <a href="/boutique.html" className="text-gray-700 hover:text-gray-900">Boutique</a>
+                                    <a href="/formation-haccp.html" className="text-gray-700 hover:text-gray-900">Formation HACCP</a>
+                                    <a href="/blog.html" className="text-gray-700 hover:text-gray-900">Blog</a>
+                                </nav>
+                            </div>
+                        </menubar>
+
+                        <p>&copy; 2024 Votre Application d'Hygiène et Sécurité Alimentaire. Tous droits réservés.</p>
+                        <div className="mt-2">
+                            {/* Assurez-vous que ce Link pointe vers le même chemin que la Route */}
+                            <Link to="/Confidentialite" className="text-gray-400 hover:text-white mx-2">Avis de confidentialité</Link> |
+                            <a href="/conditions-generales-utilisation.html" className="text-gray-400 hover:text-white mx-2">Conditions générales d’utilisation</a> |
+                            <a href="/faq.html" className="text-gray-400 hover:text-white mx-2">FAQ</a> |
+                            <a href="/mentions-legales.html" className="text-gray-400 hover:text-white mx-2">Mentions légales</a> |
+                            <a href="/contactez-nous.html" className="text-gray-400 hover:text-white mx-2">Contactez-nous</a> |
+                            <a href="/politique-de-cookies.html" className="text-gray-400 hover:text-white mx-2">Politique de cookies</a>
+                        </div>
+                    </div>
+                </footer>
+            </section>
         </div>
     );
 }
 
 export default App;
+
 
 
 

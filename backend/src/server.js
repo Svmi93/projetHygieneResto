@@ -1,5 +1,7 @@
 // backend/src/server.js (Ne change rien, déjà correct pour x-auth-token)
 require('dotenv').config();
+require('./config/firebaseAdmin'); // <--- Assurez-vous que cette ligne est présente et correcte
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');

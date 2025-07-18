@@ -74,6 +74,22 @@
 
 
 
+.company-logo {
+    max-width: 200px; /* Ou la taille que vous souhaitez */
+    height: auto;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Dans EmployerDashboardPage.css et AdminClientDashboardPage.css */
+.company-dashboard-logo {
+    max-width: 150px; /* Taille pour le dashboard */
+    height: auto;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
 
 .intro-section p{
 

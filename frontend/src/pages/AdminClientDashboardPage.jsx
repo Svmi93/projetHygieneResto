@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import DashboardLayout from '../components/DashboardLayout';
 import EquipmentForm from '../components/EquipmentForm';
-import UserForm from '../components/UserForm';
-import './AdminClientDashboardPage.css';
+import UserForm from '../components/UserForm'; // Le formulaire pour créer des utilisateurs/employés
 
 // --- IMPORTS POUR LES ALERTES ---
 import AlertPopup from '../components/AlertPopup';
@@ -15,10 +14,6 @@ import { getMyAlerts, markAlertAsRead } from '../services/alertService';
 import AddTraceabilityForm from '../components/Traceability/AddTraceabilityForm';
 import TraceabilityRecordsGallery from '../components/Traceability/TraceabilityRecordsGallery';
 // --- FIN NOUVEAUX IMPORTS TRAÇABILITÉ ---
-
-// --- NOUVEL IMPORT POUR LA GESTION DES CLIENTS ---
-import UserClientManagement from '../components/UserClientManagement';
-// --- FIN NOUVEL IMPORT ---
 
 // --- NOUVEL IMPORT : useAuth ---
 import { useAuth } from '../context/AuthContext';
@@ -85,10 +80,7 @@ const AdminClientDashboardPage = () => {
   // useEffect séparé pour les alertes et la traçabilité qui ont des déclencheurs spécifiques
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Pour les alertes, on veut re-fetch si currentAlert change (ex: on en a dismiss une)
-      // Pour la traçabilité, on veut re-fetch si refreshTraceability change
       fetchAndDisplayAlerts();
-      // Note: TraceabilityRecordsGallery a son propre refreshTrigger, donc pas besoin de re-fetch ici pour elle.
     }
   }, [currentAlert, refreshTraceability, isAuthenticated, user]); // Garder isAuthenticated et user ici pour s'assurer que les appels se font après auth
 
@@ -138,7 +130,7 @@ const AdminClientDashboardPage = () => {
   };
 
   const handleEmployeeCreated = (newEmployee) => {
-    setEmployees(prevEmployees => [...prevEmployees, newEmployee]);
+    console.log("Nouvel employé créé:", newEmployee);
     fetchMyEmployees(); // Re-fetch pour s'assurer que la liste est à jour après ajout
   };
 
@@ -181,12 +173,6 @@ const AdminClientDashboardPage = () => {
   };
 
   const handleEquipmentSaved = (newOrUpdatedEquipment) => {
-    // La logique de mise à jour locale est bonne, mais un re-fetch est plus sûr pour la cohérence
-    // if (newOrUpdatedEquipment.id) {
-    //   setEquipments(prev => prev.map(eq => eq.id === newOrUpdatedEquipment.id ? newOrUpdatedEquipment : eq));
-    // } else {
-    //   setEquipments(prev => [...prev, newOrUpdatedEquipment]);
-    // }
     fetchEquipments(); // Re-fetch pour s'assurer que la liste est à jour
   };
 
@@ -215,7 +201,7 @@ const AdminClientDashboardPage = () => {
       const fetchedAlerts = await getMyAlerts();
       setAlerts(fetchedAlerts);
       const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
-      if (newAlert && !currentAlert) { // Ne définir que si une nouvelle alerte non lue existe et qu'il n'y a pas déjà une alerte affichée
+      if (newAlert && !currentAlert) {
         setCurrentAlert(newAlert);
       }
     } catch (error) {
@@ -407,21 +393,23 @@ const AdminClientDashboardPage = () => {
           </div>
         </div>
       )
-    },
-    {
-      label: 'Gérer les Clients', // Ce label est trompeur car le composant gère les employés.
-                                 // Pensez à renommer UserClientManagement en EmployeeManagement
-      title: 'Gérer les informations de vos clients et de leurs établissements',
-      content: (
-        <div className="admin-section p-6 bg-white rounded-lg shadow-md">
-          <UserClientManagement />
-        </div>
-      )
     }
   ];
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
+      {/* Affichage conditionnel du logo de l'entreprise */}
+      {isAuthenticated && user && user.logoUrl && (
+        <div className="dashboard-logo-container mb-6">
+          <img
+            src={user.logoUrl}
+            alt="Logo de l'entreprise"
+            className="company-dashboard-logo rounded-md shadow-sm"
+            style={{ maxWidth: '180px', maxHeight: '180px' }}
+          />
+        </div>
+      )}
+
       <h2 className="welcome-message text-3xl font-bold text-gray-900 mb-6">Tableau de bord Admin Client</h2>
       <p className="dashboard-intro text-gray-700 mb-8">Utilisez les boutons sur le côté gauche pour gérer vos employés, vos équipements, leurs relevés de température et la traçabilité.</p>
 
@@ -438,6 +426,7 @@ const AdminClientDashboardPage = () => {
 };
 
 export default AdminClientDashboardPage;
+
 
 
 

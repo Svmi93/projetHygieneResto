@@ -1,4 +1,22 @@
 /* frontend/src/pages/LoginPage.css */
+
+
+
+.login-page{
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+}
+
+.login-form-container{
+
+      width: 30%;
+
+}
+
+
 .login-page-container {
   display: flex;
   flex-direction: column;
@@ -70,15 +88,23 @@
   transform: translateY(-2px);
 }
 
+.login-button{
+
+  border-radius: 20pt !important;
+
+}
+
 .cancel-button{
-  padding: 1% 2%;
-  border-radius: 20pt;
-  cursor: pointer;
-  font-size: 1em;
-  font-weight: bold;
-  width: 35%;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  margin:0% !important;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 20pt;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    width: auto;
+    display: block;
+    margin: 20px auto 0 auto;
 }
 
 .cancel-button:hover {
@@ -94,7 +120,7 @@
   border: 1px solid #e74c3c;
   padding: 10px;
   margin-bottom: 15px;
-  border-radius: 5px;
+  border-radius: 20pt;
   text-align: center;
 }
 
@@ -104,7 +130,7 @@
   border: 1px solid #27ae60;
   padding: 10px;
   margin-bottom: 15px;
-  border-radius: 5px;
+  border-radius: 20pt;
   text-align: center;
 }
 
@@ -117,6 +143,10 @@
 .buttonCantainer{
   display: flex;
   justify-content: space-evenly;
+}
+
+.form-actions{
+  display: flex;
 }
 
 

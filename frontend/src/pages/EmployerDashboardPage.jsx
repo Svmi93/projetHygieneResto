@@ -26,9 +26,8 @@ const EmployerDashboardPage = () => {
   // --- FIN useAuth ---
 
   const [temperatureRecords, setTemperatureRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = (true);
   const [error, setError] = useState('');
-  // const [userRole, setUserRole] = useState(null); // Plus besoin de le stocker ici si on utilise user.role
   const [uniqueLocations, setUniqueLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('all');
 
@@ -45,7 +44,6 @@ const EmployerDashboardPage = () => {
   useEffect(() => {
     // --- CONDITIONNEMENT DES APPELS API AVEC isAuthenticated ET user ---
     if (isAuthenticated && user) {
-      // setUserRole(user.role); // Optionnel : si vous avez encore besoin du rôle ici
       fetchTemperatureRecords(); // Déclenche les relevés
       fetchAndDisplayAlerts(); // Déclenche les alertes
 
@@ -114,12 +112,27 @@ const EmployerDashboardPage = () => {
     ? temperatureRecords
     : temperatureRecords.filter(record => record.location === selectedLocation);
 
+  // --- LOGIQUE POUR LES ALERTES (fetcher) ---
+  const fetchAndDisplayAlerts = async () => {
+    try {
+      const fetchedAlerts = await getMyAlerts();
+      setAlerts(fetchedAlerts);
+      const newAlert = fetchedAlerts.find(alert => alert.status === 'new');
+      if (newAlert && !currentAlert) {
+        setCurrentAlert(newAlert);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des alertes:', error);
+    }
+  };
+
+
   // Définition des boutons pour la barre latérale
   const sidebarButtons = [
     {
       label: 'Ajouter Relevé',
       title: 'Ajouter un nouveau relevé de température',
-      content: <TemperatureEntryForm onRecordAdded={handleRecordAdded} userRole={user ? user.role : null} /> 
+      content: <TemperatureEntryForm onRecordAdded={handleRecordAdded} userRole={user ? user.role : null} />
     },
     {
       label: 'Mes Relevés',
@@ -203,6 +216,18 @@ const EmployerDashboardPage = () => {
 
   return (
     <DashboardLayout sidebarButtons={sidebarButtons}>
+      {/* Affichage conditionnel du logo de l'entreprise */}
+      {isAuthenticated && user && user.logoUrl && (
+        <div className="dashboard-logo-container mb-6">
+          <img
+            src={user.logoUrl}
+            alt="Logo de l'entreprise"
+            className="company-dashboard-logo rounded-md shadow-sm"
+            style={{ maxWidth: '180px', maxHeight: '180px' }}
+          />
+        </div>
+      )}
+
       <h2 className="welcome-message text-3xl font-bold text-gray-900 mb-6">Bienvenue sur votre tableau de bord Employé !</h2>
       <p className="dashboard-intro text-gray-700 mb-8">Utilisez les boutons sur le côté gauche pour ajouter ou consulter vos relevés de température et gérer la traçabilité.</p>
 
@@ -219,6 +244,7 @@ const EmployerDashboardPage = () => {
 };
 
 export default EmployerDashboardPage;
+
 
 
 
