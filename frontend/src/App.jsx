@@ -158,8 +158,6 @@ function App() {
                         <menubar className="bg-white shadow-sm py-4">
                             <div className="container-flex flex-col md:flex-row justify-between items-center">
                                 <nav className="menubar-nav-href flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-2 text-sm font-medium">
-                                    <a href="/demander-demo.html" className="text-gray-700 hover:text-gray-900">Demander une démo</a>
-                                    <a href="/essai-gratuit.html" className="text-gray-700 hover:text-gray-900">Essai gratuit</a>
                                     <a href="/fonctionnalites.html" className="text-gray-700 hover:text-gray-900">Fonctionnalités</a>
                                     <a href="/secteur.html" className="text-gray-700 hover:text-gray-900">Secteur</a>
                                     <a href="/boutique.html" className="text-gray-700 hover:text-gray-900">Boutique</a>

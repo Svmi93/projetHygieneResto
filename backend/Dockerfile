@@ -1,47 +1,81 @@
-    # backend/Dockerfile
+# backend/Dockerfile
 
-    # Utilise une image Node.js officielle comme base
-    FROM node:18-alpine
+FROM node:18-alpine
 
-    # Définir l'environnement pour Node.js
-    ENV NODE_ENV=production
+# NODE_ENV sera défini par docker-compose.yml, donc cette ligne est retirée d'ici
+# ENV NODE_ENV=production
 
-    # Définir le répertoire de travail
-    WORKDIR /usr/src/app
+WORKDIR /usr/src/app
 
-    # Installer tzdata pour la gestion des fuseaux horaires et curl pour les requêtes HTTP (si non déjà présent)
-    # Utiliser un argument de build pour invalider le cache et forcer la mise à jour de tzdata
-    ARG CACHE_BREAKER # Déclare l argument de build
-    RUN echo "Forcing rebuild for timezone setup: ${CACHE_BREAKER}" && \ 
-        apk add --no-cache tzdata curl \
-        && ln -snf /usr/share/zoneinfo/Europe/Paris /etc/localtime \
-        && echo "Europe/Paris" > /etc/timezone \
-        && date # Afficher la date pour vérifier qu elle est correcte après la configuration
+# Installer curl (utile pour les healthchecks ou débogage)
+# Suppression de tzdata car TZ est géré par docker-compose.yml
+RUN apk add --no-cache curl
 
-    # Copier package.json et package-lock.json
-    COPY package*.json ./
+COPY package*.json ./
+RUN npm install --omit=dev
 
-    # Installer les dépendances
-    RUN npm install --omit=dev
+COPY src ./src
+COPY .env ./.env
 
-    # Copier le reste du code source
-    COPY src ./src
-    COPY .env ./.env
-    # La ligne 'COPY serviceAccountKey.json' a été supprimée car le fichier n'existe pas.
-    # Si le fichier existe, assurez-vous qu'il est au bon endroit par rapport au Dockerfile
-    # et que son nom est bien hygiene1-664ad-firebase-adminsdk.json
-    # Si le fichier existe et est dans 'backend/firebase-admin-keys/', alors il n'y a pas besoin de COPY ici,
-    # car il sera monté via le volume dans docker-compose.yml si tu utilises un volume pour le backend.
-    # Si tu ne montes pas le dossier 'firebase-admin-keys' via un volume, et que tu veux le COPIER,
-    # alors la ligne devrait être :
-    # COPY firebase-admin-keys/hygiene1-664ad-firebase-adminsdk.json ./firebase-admin-keys/hygiene1-664ad-firebase-adminsdk.json
-    # Mais si tu utilises un volume pour le dossier 'backend', il sera déjà là.
+# Pas besoin de créer le dossier 'uploads' ici si tu montes un volume dessus
+# ou si tu laisses Express le créer lors du premier upload.
+# La création est gérée par le photoController désormais.
 
-    # Exposer le port sur lequel l'application s'exécute
-    EXPOSE 5001
+EXPOSE 5001
 
-    # Commande pour démarrer l'application
-    CMD [ "node", "src/server.js" ]
+CMD [ "node", "src/server.js" ]
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    # # backend/Dockerfile
+
+    # FROM node:18-alpine
+
+    # ENV NODE_ENV=production
+
+    # WORKDIR /usr/src/app
+
+    # ARG CACHE_BREAKER
+    # RUN echo "Forcing rebuild for timezone setup: ${CACHE_BREAKER}" && \
+    #     apk add --no-cache tzdata curl \
+    #     && ln -snf /usr/share/zoneinfo/Europe/Paris /etc/localtime \
+    #     && echo "Europe/Paris" > /etc/timezone \
+    #     && date
+
+    # COPY package*.json ./
+    # RUN npm install --omit=dev
+
+    # COPY src ./src
+    # COPY .env ./.env
+
+    # # Crée un répertoire pour les uploads.
+    # # Si tu veux que les uploads persistent après la suppression du conteneur,
+    # # tu devras monter un volume Docker pour ce dossier dans docker-compose.yml.
+    # RUN mkdir -p uploads
+
+    # EXPOSE 5001
+
+    # CMD [ "node", "src/server.js" ]
+    
+
+
+
+
+
+
     
 
 

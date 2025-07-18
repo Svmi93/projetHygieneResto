@@ -3,6 +3,8 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
 
+// NOTE: Le chemin vers le fichier de clés DOIT être correct pour l'initialisation du SDK.
+// Il sera utilisé si Firebase est activé, même si le bucket n'est pas spécifié ici.
 const serviceAccountPath = path.resolve(__dirname, '../../firebase-admin-keys/hygiene1-664ad-firebase-adminsdk.json');
 
 let serviceAccount;
@@ -10,31 +12,28 @@ try {
   const serviceAccountContent = fs.readFileSync(serviceAccountPath, 'utf8');
   serviceAccount = JSON.parse(serviceAccountContent);
 } catch (error) {
-  console.error('ERREUR CRITIQUE: Impossible de charger le fichier de compte de service Firebase. Vérifiez le chemin et les permissions du fichier.');
-  console.error(error);
-  process.exit(1);
+  console.error('ERREUR CRITIQUE: Impossible de charger le fichier de compte de service Firebase. Vérifiez le chemin et les permissions du fichier. Cela peut être normal en mode developpement si vous ne l\'utilisez pas.');
+  // Ne pas quitter le processus, pour permettre le mode developpement local sans Firebase
+  // if (process.env.NODE_ENV !== 'development') {
+  //   process.exit(1);
+  // }
+  // On peut même ne pas afficher d'erreur si la variable d'env indique qu'on ne s'attend pas à Firebase ici
+  console.log('Firebase Admin SDK non initialisé car le fichier de clés est manquant ou non configuré.');
+  module.exports = null; // Exporte null si Firebase n'est pas initialisé
+  return; // Sortir de la fonction
 }
 
-// Initialisation de Firebase Admin SDK.
-// La condition `!admin.apps.length` garantit que l'initialisation ne se produit qu'une seule fois.
 if (!admin.apps.length) {
-  // Initialise l'application Firebase
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: 'hygiene1-664ad.appspot.com'
+    // IMPORTANT: Ne PAS spécifier storageBucket ici. Le contrôleur le fera conditionnellement.
   });
-  console.log('Firebase Admin SDK initialisé avec succès depuis le fichier.');
+  console.log('Firebase Admin SDK initialisé avec succès depuis le fichier de clés.');
 } else {
-  // Si l'application est déjà initialisée (par exemple, lors de tests ou de rechargements),
-  // on utilise l'instance existante.
-  // C'est important car `admin.apps[0]` est l'instance de l'application par défaut.
   admin.app();
   console.log('Firebase Admin SDK déjà initialisé, utilisation de l\'instance existante.');
 }
 
-// Exporte l'instance 'admin' initialisée.
-// Cette ligne assure que l'objet 'admin' qui est exporté est bien celui qui
-// a été configuré avec 'initializeApp()'.
 module.exports = admin;
 
 
