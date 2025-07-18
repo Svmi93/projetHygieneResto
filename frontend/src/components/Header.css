@@ -28,9 +28,10 @@
 }
 
 .nav-buttons {
-  display: flex;
-  align-items: center;
-  gap: 15px; /* Espace entre les boutons et le texte */
+  display: flex !important;
+  align-items: center !important;
+  gap: 15px !important; /* Espace entre les boutons et le texte */
+  border-radius: 20pt !important;
 }
 
 .login-button,
@@ -118,4 +119,8 @@ body {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.auth-info-and-buttons{
+  display: flex;
 }
