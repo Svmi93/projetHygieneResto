@@ -1,18 +1,24 @@
-// backend/src/controllers/authController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getConnection } = require('../config/db');
-const admin = require('../config/firebaseAdmin'); // <--- MODIFIEZ CETTE LIGNE
+const admin = require('../config/firebaseAdmin'); // Assurez-vous que ceci est bien en haut
 
 // Fonction utilitaire pour uploader un fichier sur Firebase Storage
-// Cette fonction est similaire à celle de traceabilityController.js, mais peut être réutilisée ici.
 const uploadToFirebase = async (file, folder = 'uploads') => {
-    const bucket = admin.storage().bucket();
+    // --- DÉBUT DE LA CORRECTION ---
+    // Vérifie si l'Admin SDK Firebase est initialisé
+    if (!admin || !admin.storage) {
+        console.warn('Firebase Admin SDK non initialisé, le fichier ne sera pas uploadé sur Firebase Storage.');
+        return null; // Retourne null si Firebase n'est pas disponible
+    }
+
+    const bucket = admin.storage().bucket(); // Utilisez le bucket par défaut si configuré dans firebaseAdmin.js
     const fileName = `${folder}/${Date.now()}_${file.originalname}`;
     const fileUpload = bucket.file(fileName);
 
     const blobStream = fileUpload.createWriteStream({
         metadata: { contentType: file.mimetype },
+        public: true, // Assurez-vous que le fichier est public si c'est l'intention
     });
 
     return new Promise((resolve, reject) => {
@@ -22,13 +28,16 @@ const uploadToFirebase = async (file, folder = 'uploads') => {
         });
 
         blobStream.on('finish', () => {
-            // Rendre le fichier public et obtenir l'URL
+            // L'URL publique sera générée automatiquement si 'public: true' est défini
+            // ou si la politique de seau le permet. Sinon, vous pourriez avoir besoin de :
+            // fileUpload.getSignedUrl(...) ou simplement l'URL standard si public.
             const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
             resolve(publicUrl);
         });
 
-        blobStream.end(file.buffer);
+        blobStream.end(file.buffer); // Multer met le contenu du fichier dans file.buffer
     });
+    // --- FIN DE LA CORRECTION ---
 };
 
 // Fonction de connexion de l'utilisateur
@@ -121,7 +130,15 @@ exports.register = async (req, res) => {
     }
 
     if (role === 'admin_client' && !logoFile) {
-        return res.status(400).json({ message: 'Le logo de l\'entreprise est requis pour un Admin Client.' });
+        // --- DÉBUT DE LA CORRECTION ---
+        // Permettre l'enregistrement sans logo en développement si Firebase n'est pas initialisé
+        if (!admin || !admin.storage) {
+            console.warn("Logo de l'entreprise manquant pour Admin Client, mais Firebase SDK non initialisé. L'enregistrement continuera sans upload de logo.");
+            // Ne pas retourner d'erreur ici, laisser la création de l'utilisateur se faire sans logo
+        } else {
+            return res.status(400).json({ message: 'Le logo de l\'entreprise est requis pour un Admin Client lorsque Firebase est configuré.' });
+        }
+        // --- FIN DE LA CORRECTION ---
     }
 
     try {
@@ -280,12 +297,6 @@ exports.verifyToken = async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur lors de la vérification du token.' });
     }
 };
-
-
-// LA FONCTION 'verifyToken' N'EST PLUS NÉCESSAIRE ICI.
-// Le middleware 'authenticateToken' gère la vérification du token,
-// et la route dans authRoutes.js renvoie directement les informations de req.user.
-// exports.verifyToken = async (req, res) => { /* ... code supprimé ... */ };
 
 
 
