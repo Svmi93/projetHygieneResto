@@ -106,8 +106,8 @@ function App() {
                     ) : (
                         // Si l'utilisateur n'est pas authentifié, affiche les boutons de connexion et d'inscription
                         <div className="auth-buttons">
-                            <button onClick={openLoginForm} className="nav-button">Connexion</button>
-                            <button onClick={openRegisterForm} className="nav-button">Enregistrer un nouveau compte</button>
+                            <button onClick={openLoginForm} className="nav-button"><span></span><span></span><span></span><span></span>Connexion</button>
+                            <button onClick={openRegisterForm} className="nav-button"><span></span><span></span><span></span><span></span>Enregistrer un nouveau compte</button>
                         </div>
                     )}
                 </nav>
@@ -155,19 +155,18 @@ function App() {
             <section className='end-page'>
                 <footer className="App-footer bg-gray-800 text-white py-6 mt-8">
                     <div className="down container text-center text-sm">
-                        <menubar className="bg-white shadow-sm py-4">
+                        <section className="bg-white shadow-sm py-4">
                             <div className="container-flex flex-col md:flex-row justify-between items-center">
-                                <nav className="menubar-nav-href flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-2 text-sm font-medium">
+                                <div className="menubar-nav-href flex flex-wrap justify-center md:justify-end gap-x-4 gap-y-2 text-sm font-medium">
                                     <a href="/fonctionnalites.html" className="text-gray-700 hover:text-gray-900">Fonctionnalités</a>
                                     <a href="/secteur.html" className="text-gray-700 hover:text-gray-900">Secteur</a>
                                     <a href="/boutique.html" className="text-gray-700 hover:text-gray-900">Boutique</a>
                                     <a href="/formation-haccp.html" className="text-gray-700 hover:text-gray-900">Formation HACCP</a>
                                     <a href="/blog.html" className="text-gray-700 hover:text-gray-900">Blog</a>
-                                </nav>
+                                </div>
                             </div>
-                        </menubar>
+                        </section>
 
-                        <p>&copy; 2024 Votre Application d'Hygiène et Sécurité Alimentaire. Tous droits réservés.</p>
                         <div className="mt-2">
                             {/* Assurez-vous que ce Link pointe vers le même chemin que la Route */}
                             <Link to="/Confidentialite" className="text-gray-400 hover:text-white mx-2">Avis de confidentialité</Link> |
@@ -177,6 +176,9 @@ function App() {
                             <a href="/contactez-nous.html" className="text-gray-400 hover:text-white mx-2">Contactez-nous</a> |
                             <a href="/politique-de-cookies.html" className="text-gray-400 hover:text-white mx-2">Politique de cookies</a>
                         </div>
+                        
+                            <p>&copy; 2024 Votre Application d'Hygiène et Sécurité Alimentaire. Tous droits réservés.</p>
+
                     </div>
                 </footer>
             </section>
