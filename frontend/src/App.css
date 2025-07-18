@@ -150,6 +150,11 @@ a:hover {
   margin: 1%;
 }
 
+.nav-button{
+  background-color: #000000;
+  border-radius: 4pt;
+}
+
 .mt-2{
 
   margin-top: 1%;
