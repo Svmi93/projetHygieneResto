@@ -33,6 +33,7 @@ const AuthService = {
     verifyToken: async () => {
         try {
             const response = await axiosInstance.get(`${AUTH_API_URL}/verify-token`);
+            console.log('AuthService: verifyToken response:', response);
             // Ne stocke plus 'user' ici. AuthContext gère cela.
             return response.data.user; // Retourne l'objet user directement
         } catch (error) {

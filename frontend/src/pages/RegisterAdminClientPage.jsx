@@ -112,7 +112,10 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                 if (onAdminClientRegistered) {
                     onAdminClientRegistered(result.user);
                 }
-                navigate('/login', { replace: true });
+                // Delay navigation to allow user to see success message
+                setTimeout(() => {
+                    navigate('/login', { replace: true });
+                }, 2000);
             } else {
                 setError(result.message || 'Échec de l\'enregistrement. Vérifiez les informations.');
             }
@@ -143,7 +146,7 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                     </div>
                     <div className="form-group">
                         <label htmlFor="email">Email :</label>
-                        <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required />
+                        <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="username" />
                     </div>
                     <div className="form-group">
                         <label htmlFor="telephone">Téléphone :</label>
@@ -164,7 +167,7 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                     </div>
                     <div className="form-group">
                         <label htmlFor="password">Mot de passe :</label>
-                        <input type="password" id="password" name="password" placeholder="Votre mot de passe secret" value={formData.password} onChange={handleChange} required />
+                        <input type="password" id="password" name="password" placeholder="Votre mot de passe secret" value={formData.password} onChange={handleChange} required autoComplete="new-password" />
                         <div className="password-feedback">
                             <p className={passwordValidation.length ? 'valid' : 'invalid'}>Minimum 14 caractères</p>
                             <p className={passwordValidation.digit ? 'valid' : 'invalid'}>Minimum un chiffre</p>
@@ -174,7 +177,7 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                     </div>
                     <div className="form-group">
                         <label htmlFor="confirmPassword">Confirmer le mot de passe :</label>
-                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirmer votre mot de passe" value={formData.confirmPassword} onChange={handleChange} required />
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirmer votre mot de passe" value={formData.confirmPassword} onChange={handleChange} required autoComplete="new-password" />
                         {formData.confirmPassword.length > 0 && (
                             <p className={passwordMatch ? 'valid' : 'invalid'}>
                                 {passwordMatch ? 'Les mots de passe correspondent' : 'Les mots de passe ne correspondent pas'}

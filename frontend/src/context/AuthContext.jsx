@@ -1,92 +1,87 @@
-// frontend/src/context/AuthContext.jsx
+// frontend/src/context/AuthContext_updated.jsx
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import AuthService from '../services/AuthService'; // Assurez-vous que le chemin est correct
+import AuthService from '../services/AuthService';
 
-// Crée le contexte d'authentification
 const AuthContext = createContext(null);
 
-// Hook personnalisé pour utiliser le contexte d'authentification
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);
 
-// Fournisseur d'authentification
 export const AuthProvider = ({ children }) => {
-  // Initialise l'état utilisateur et le token à partir de localStorage
-  // Cela permet de persister la session entre les rechargements de page
   const [user, setUser] = useState(() => {
     try {
       const storedUser = localStorage.getItem('user');
+      console.log("AuthContext: Initial user from localStorage:", storedUser);
       return storedUser ? JSON.parse(storedUser) : null;
     } catch (error) {
       console.error("Erreur lors de la lecture de l'utilisateur depuis localStorage au démarrage:", error);
       return null;
     }
   });
-  const [token, setToken] = useState(localStorage.getItem('userToken'));
-  const [isLoading, setIsLoading] = useState(true); // État de chargement initial pour la vérification du token
-  const [error, setError] = useState(null); // État d'erreur pour les opérations d'authentification
+  const [token, setToken] = useState(() => {
+    const storedToken = localStorage.getItem('userToken');
+    console.log("AuthContext: Initial token from localStorage:", storedToken);
+    return storedToken;
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fonction de déconnexion
   const logout = useCallback(() => {
+    console.log("AuthContext: logout called");
     setUser(null);
     setToken(null);
-    localStorage.removeItem('userToken'); // Supprime le token du localStorage
-    localStorage.removeItem('user');     // Supprime les infos utilisateur du localStorage
+    localStorage.removeItem('userToken');
+    localStorage.removeItem('user');
     console.log('Utilisateur déconnecté et données supprimées du localStorage.');
-    // Optionnel: Rediriger l'utilisateur vers la page de connexion
-    // window.location.href = '/login'; // Ou utiliser useNavigate si disponible dans votre App.jsx
   }, []);
 
-  // Fonction pour vérifier le token auprès du backend
   const verifyToken = useCallback(async () => {
-    const currentToken = localStorage.getItem('userToken'); // Récupère le token le plus récent
+    const currentToken = localStorage.getItem('userToken');
+    console.log("AuthContext: Token actuel dans localStorage:", currentToken);
     if (!currentToken) {
-      setUser(null); // Pas de token, pas d'utilisateur
-      setIsLoading(false); // Termine le chargement
+      console.log("AuthContext: No token found, setting user to null and loading false");
+      setUser(null);
+      setIsLoading(false);
       return false;
     }
 
     try {
-      // Appelle AuthService pour la vérification. AuthService.verifyToken renvoie l'objet 'user'.
+      console.log("AuthContext: Envoi de la requête verifyToken avec token:", currentToken);
       const userData = await AuthService.verifyToken();
-      
-      // Si la vérification réussit, met à jour l'état et le localStorage
+
+      console.log('AuthContext: Données utilisateur reçues après vérification du token:', userData);
+
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      setToken(currentToken); // Assure que le token est toujours à jour
+      setToken(currentToken);
       setError(null);
       console.log('Token vérifié avec succès. Utilisateur connecté:', userData.email);
       return true;
     } catch (err) {
       console.error('Erreur lors de la vérification du token:', err);
+      if (err.response) {
+        console.error('Détails de la réponse d\'erreur:', err.response.data);
+      }
       setError(err.response?.data?.message || 'Erreur lors de la vérification de la session.');
-      logout(); // Déconnecte l'utilisateur en cas d'erreur de vérification
+      logout();
       return false;
     } finally {
-      setIsLoading(false); // Termine le chargement après la vérification
+      setIsLoading(false);
     }
   }, [logout]);
 
-  // Effet pour vérifier le token au montage du composant (après un rechargement de page)
-  // S'exécute une seule fois au chargement initial
   useEffect(() => {
-    verifyToken(); // Appelle la fonction de vérification
-  }, [verifyToken]); // Dépendance à verifyToken pour s'assurer qu'elle est stable
+    verifyToken();
+  }, [verifyToken]);
 
-  // Fonction de connexion (appelée depuis les formulaires de login)
   const login = useCallback(async (email, password) => {
-    setIsLoading(true); // Commence le chargement
-    setError(null);     // Réinitialise les erreurs précédentes
+    setIsLoading(true);
+    setError(null);
     try {
-      // Appelle AuthService pour la connexion. AuthService.login renvoie { token, user }.
       const response = await AuthService.login(email, password);
-      
-      // Stocke le nouveau token et les informations utilisateur dans localStorage
+
       localStorage.setItem('userToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Met à jour l'état du contexte
+
       setToken(response.token);
       setUser(response.user);
       console.log('Connexion réussie. Utilisateur:', response.user.email);
@@ -96,49 +91,257 @@ export const AuthProvider = ({ children }) => {
       setError(err.response?.data?.message || 'Échec de la connexion.');
       return false;
     } finally {
-      setIsLoading(false); // Termine le chargement
+      setIsLoading(false);
     }
   }, []);
 
-  // Détermine si l'utilisateur est authentifié
   const isAuthenticated = !!user && !!token;
 
-  // Valeurs fournies par le contexte
+  const register = useCallback(async (userData) => { // userData is FormData
+    console.log("AuthContext: register called.");
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await AuthService.register(userData);
+      console.log('AuthContext: Registration successful:', response);
+      setError(null);
+      return { success: true, message: 'Registration successful', user: response.user };
+    } catch (err) {
+      console.error('AuthContext: Error during registration:', err);
+      const errorMessage = err.response?.data?.message || 'Registration failed.';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const authContextValue = {
     user,
     token,
     isLoading,
     error,
-    isAuthenticated, // Nouvelle propriété pour une vérification facile
+    isAuthenticated,
     login,
     logout,
     verifyToken,
+    register,
   };
 
-  // Affiche un écran de chargement tant que l'authentification n'est pas vérifiée
   if (isLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh', 
-        fontSize: '24px', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '24px',
         color: '#333',
-        backgroundColor: '#f0f2f5' // Ajout d'un fond léger pour le contraste
+        backgroundColor: '#f0f2f5'
       }}>
         Chargement de l'authentification...
       </div>
     );
   }
 
-  // Si l'authentification est terminée (chargement = false), rend les enfants
   return (
     <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+
+
+
+
+
+
+
+
+// // frontend/src/context/AuthContext.jsx
+// import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+// import AuthService from '../services/AuthService'; // Assurez-vous que le chemin est correct
+
+// // Crée le contexte d'authentification
+// const AuthContext = createContext(null);
+
+// // Hook personnalisé pour utiliser le contexte d'authentification
+// export const useAuth = () => {
+//   return useContext(AuthContext);
+// };
+
+// // Fournisseur d'authentification
+// export const AuthProvider = ({ children }) => {
+//   // Initialise l'état utilisateur et le token à partir de localStorage
+//   // Cela permet de persister la session entre les rechargements de page
+//   const [user, setUser] = useState(() => {
+//     console.log("AuthContext: Initialisation de l'état user depuis localStorage.");
+//     try {
+//       const storedUser = localStorage.getItem('user');
+//       return storedUser ? JSON.parse(storedUser) : null;
+//     } catch (error) {
+//       console.error("AuthContext: Erreur lors de la lecture de l'utilisateur depuis localStorage au démarrage:", error);
+//       return null;
+//     }
+//   });
+//   const [token, setToken] = useState(localStorage.getItem('userToken'));
+//   const [isLoading, setIsLoading] = useState(true); // État de chargement initial pour la vérification du token
+//   const [error, setError] = useState(null); // État d'erreur pour les opérations d'authentification
+
+//   // Fonction de déconnexion
+//   const logout = useCallback(() => {
+//     console.log("AuthContext: Déclenchement de la déconnexion.");
+//     setUser(null);
+//     setToken(null);
+//     AuthService.logout(); // Appelle AuthService.logout pour nettoyer le localStorage
+//     console.log('AuthContext: Utilisateur déconnecté et données supprimées du localStorage.');
+//     // Optionnel: Rediriger l'utilisateur vers la page de connexion
+//     // window.location.href = '/login'; // Si tu utilises React Router, utilise useNavigate ici
+//   }, []);
+
+//   // Fonction pour vérifier le token auprès du backend
+//   const verifyToken = useCallback(async () => {
+//     console.log("AuthContext: verifyToken appelé.");
+//     const currentToken = localStorage.getItem('userToken'); // Récupère le token le plus récent
+//     if (!currentToken) {
+//       // Pas de token dans localStorage, donc pas besoin de vérifier.
+//       console.log("AuthContext: Pas de token trouvé dans localStorage. Fin du chargement.");
+//       setUser(null);
+//       setIsLoading(false); // FIN DU CHARGEMENT
+//       return false;
+//     }
+
+//     console.log("AuthContext: Token trouvé, tentative de vérification auprès du backend.");
+//     try {
+//       // Appelle AuthService pour la vérification. AuthService.verifyToken renvoie l'objet 'user'.
+//       const userData = await AuthService.verifyToken();
+//       console.log("AuthContext: Réponse de verifyToken reçue:", userData);
+      
+//       // Si la vérification réussit, met à jour l'état et le localStorage
+//       localStorage.setItem('user', JSON.stringify(userData));
+//       setUser(userData);
+//       setToken(currentToken); // Assure que le token est toujours à jour
+//       setError(null);
+//       console.log('AuthContext: Token vérifié avec succès. Utilisateur connecté:', userData.email);
+//       return true;
+//     } catch (err) {
+//       // En cas d'erreur (token invalide, expiré, réseau, etc.)
+//       console.error('AuthContext: Erreur lors de la vérification du token dans AuthContext:', err);
+//       setError(err.response?.data?.message || 'Erreur lors de la vérification de la session.');
+//       logout(); // Déconnecte l'utilisateur et nettoie le localStorage
+//       return false;
+//     } finally {
+//       // TRÈS IMPORTANT : Assure-toi que isLoading est toujours mis à false, QUEL QUE SOIT LE RÉSULTAT.
+//       console.log("AuthContext: Bloc finally de verifyToken atteint. Définition de isLoading à false.");
+//       setIsLoading(false); // FIN DU CHARGEMENT
+//     }
+//   }, [logout]);
+
+//   // Effet pour vérifier le token au montage du composant (après un rechargement de page)
+//   // S'exécute une seule fois au chargement initial
+//   useEffect(() => {
+//     console.log("AuthContext: useEffect de vérification du token déclenché.");
+//     const storedToken = localStorage.getItem('userToken');
+//     if (storedToken) {
+//       console.log("AuthContext: Token trouvé dans useEffect, appel de verifyToken.");
+//       verifyToken(); // Appelle la fonction de vérification
+//     } else {
+//       console.log("AuthContext: Pas de token dans useEffect, fin du chargement.");
+//       setIsLoading(false); // Pas de token, pas de chargement nécessaire
+//     }
+//   }, [verifyToken]); // Dépendance à verifyToken pour s'assurer qu'elle est stable
+
+//   // Fonction de connexion (appelée depuis les formulaires de login)
+//   const login = useCallback(async (email, password) => {
+//     console.log("AuthContext: login appelé.");
+//     setIsLoading(true); // Commence le chargement
+//     setError(null);     // Réinitialise les erreurs précédentes
+//     try {
+//       // Appelle AuthService pour la connexion. AuthService.login renvoie { token, user }.
+//       const response = await AuthService.login(email, password);
+//       console.log("AuthContext: Réponse de login reçue:", response);
+      
+//       // Stocke le nouveau token et les informations utilisateur dans localStorage
+//       localStorage.setItem('userToken', response.token);
+//       localStorage.setItem('user', JSON.stringify(response.user));
+      
+//       // Met à jour l'état du contexte
+//       setToken(response.token);
+//       setUser(response.user);
+//       console.log('AuthContext: Connexion réussie. Utilisateur:', response.user.email);
+//       return true;
+//     } catch (err) {
+//       console.error('AuthContext: Erreur lors de la connexion:', err);
+//       setError(err.response?.data?.message || 'Échec de la connexion.');
+//       return false;
+//     } finally {
+//       console.log("AuthContext: Bloc finally de login atteint. Définition de isLoading à false.");
+//       setIsLoading(false); // FIN DU CHARGEMENT
+//     }
+//   }, []);
+
+//   // Fonction d'enregistrement
+//   const register = useCallback(async (userData) => { // userData sera un objet FormData
+//     console.log("AuthContext: register appelé.");
+//     setIsLoading(true);
+//     setError(null);
+//     try {
+//       const response = await AuthService.register(userData);
+//       console.log('AuthContext: Enregistrement réussi:', response);
+//       setError(null); // Clear any previous errors
+//       return { success: true, message: 'Enregistrement réussi', user: response.user };
+//     } catch (err) {
+//       console.error('AuthContext: Erreur lors de l\'enregistrement:', err);
+//       const errorMessage = err.response?.data?.message || 'Échec de l\'enregistrement.';
+//       setError(errorMessage);
+//       return { success: false, message: errorMessage };
+//     } finally {
+//       console.log("AuthContext: Bloc finally de register atteint. Définition de isLoading à false.");
+//       setIsLoading(false);
+//     }
+//   }, []);
+
+//   // Détermine si l'utilisateur est authentifié
+//   const isAuthenticated = !!user && !!token;
+
+//   // Valeurs fournies par le contexte
+//   const authContextValue = {
+//     user,
+//     token,
+//     isLoading,
+//     error, // Expose l'erreur pour que les composants puissent la lire
+//     isAuthenticated, // Nouvelle propriété pour une vérification facile
+//     login,
+//     logout,
+//     verifyToken,
+//     register, // <-- CETTE LIGNE DOIT ÊTRE PRÉSENTE ET CORRECTE !
+//   };
+
+//   // Affiche un écran de chargement tant que l'authentification n'est pas vérifiée
+//   if (isLoading) {
+//     return (
+//       <div style={{ 
+//         display: 'flex', 
+//         justifyContent: 'center', 
+//         alignItems: 'center', 
+//         height: '100vh', 
+//         fontSize: '24px', 
+//         color: '#333',
+//         backgroundColor: '#f0f2f5' // Ajout d'un fond léger pour le contraste
+//       }}>
+//         Chargement de l'authentification...
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <AuthContext.Provider value={authContextValue}>
+//       {children}
+//     </AuthContext.Provider>
+//   );
+// };
+
 
 
 

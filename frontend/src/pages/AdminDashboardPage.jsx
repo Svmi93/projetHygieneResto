@@ -13,7 +13,7 @@ const AdminDashboardPage = () => {
 
   useEffect(() => {
     fetchAllUsers();
-    // fetchAllTemperatureRecords(); // Décommenter quand vous implémenterez la gestion des relevés
+    fetchAllTemperatureRecords(); // Décommenter quand vous implémenterez la gestion des relevés
   }, []);
 
   const fetchAllUsers = async () => {
@@ -46,23 +46,23 @@ const AdminDashboardPage = () => {
   };
 
   const fetchAllTemperatureRecords = async () => {
-    // setLoading(true);
-    // setError('');
-    // try {
-    //   // TODO: Implémenter l'appel API pour récupérer TOUS les relevés de température
-    //   // Exemple: const response = await axios.get('http://localhost:5001/api/admin/temperatures', config);
-    //   // setTemperatureRecords(response.data);
-    //   console.log('Chargement de tous les relevés de température...');
-    //   setTemperatureRecords([
-    //     { id: 101, type: 'Frigo', location: 'Cuisine', temperature: 4.2, timestamp: '2023-01-01T10:00:00Z', user_id: 3 },
-    //     { id: 102, type: 'Congélateur', location: 'Réserve', temperature: -18.5, timestamp: '2023-01-01T11:00:00Z', user_id: 3 },
-    //   ]); // Données de test
-    // } catch (err) {
-    //   console.error('Erreur lors du chargement des relevés de température:', err);
-    //   // setError('Erreur lors du chargement des relevés de température.');
-    // } finally {
-    //   // setLoading(false);
-    // }
+    setLoading(true);
+    setError('');
+    try {
+      // TODO: Implémenter l'appel API pour récupérer TOUS les relevés de température
+       const response = await axios.get('http://localhost:5001/api/admin/temperatures', config);
+       setTemperatureRecords(response.data);
+      console.log('Chargement de tous les relevés de température...');
+      setTemperatureRecords([
+        { id: 101, type: 'Frigo', location: 'Cuisine', temperature: 4.2, timestamp: '2023-01-01T10:00:00Z', user_id: 3 },
+        { id: 102, type: 'Congélateur', location: 'Réserve', temperature: -18.5, timestamp: '2023-01-01T11:00:00Z', user_id: 3 },
+      ]); // Données de test
+    } catch (err) {
+      console.error('Erreur lors du chargement des relevés de température:', err);
+       setError('Erreur lors du chargement des relevés de température.');
+    } finally {
+       setLoading(false);
+    }
   };
 
   const sidebarButtons = [
