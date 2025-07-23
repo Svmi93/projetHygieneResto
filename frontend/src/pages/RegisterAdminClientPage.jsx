@@ -116,7 +116,10 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                 if (onAdminClientRegistered) {
                     onAdminClientRegistered(result.user);
                 }
-                navigate('/login', { replace: true });
+                // Delay navigation to allow user to see success message
+                setTimeout(() => {
+                    navigate('/login', { replace: true });
+                }, 2000);
             } else {
                 // If not successful, the error message comes from the result object
                 setLocalError(result.message || 'Échec de l\'enregistrement. Vérifiez les informations.');
@@ -152,7 +155,11 @@ function RegisterAdminClientPage({ onAdminClientRegistered, onCancel }) {
                     </div>
                     <div className="form-group">
                         <label htmlFor="email">Email :</label>
+
+                        <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="username" />
+
                         <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="email" />
+
                     </div>
                     <div className="form-group">
                         <label htmlFor="telephone">Téléphone :</label>

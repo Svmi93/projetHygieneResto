@@ -68,8 +68,8 @@ function LoginPage({ onCancel }) {
                             placeholder="Votre mot de passe secret"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            required
-                            name="password" // Ajouté pour autocomplete (suggestion du navigateur)
+                            required 
+                            autoComplete="password"// Ajouté pour autocomplete (suggestion du navigateur)
                         />
                     </div>
                     {error && <p className="error-message">{error}</p>}

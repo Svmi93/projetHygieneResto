@@ -1,4 +1,4 @@
-// frontend/src/components/HomePage.jsx
+/// frontend/src/components/HomePage.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext'; // Importe useAuth pour accéder aux infos utilisateur
@@ -101,7 +101,7 @@ function HomePage({ getDashboardPath }) { // getDashboardPath est toujours néce
         <footer className="call-to-action-footer">
           <h2>Prêt à Transformer votre Gestion ?</h2>
           <div className="action-buttons">
-            <button className="cta-button"><a href="#">Contactez-nous</a></button>
+            <button className="cta-button"><a href="/register-admin-client">Rejoinez-nous</a></button>
           </div>
         </footer>
       </>
@@ -219,4 +219,4 @@ export default HomePage;
 //   );
 // }
 
-// export default HomePage;
+//export default HomePage;
