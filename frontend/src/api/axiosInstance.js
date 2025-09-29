@@ -6,6 +6,12 @@ const axiosInstance = axios.create({
     withCredentials: true, // Important pour les cookies et sessions si vous les utilisez
 });
 
+let logoutCallback = null;
+
+export const setLogoutCallback = (callback) => {
+    logoutCallback = callback;
+};
+
 // Intercepteur de requêtes pour ajouter le token JWT
 axiosInstance.interceptors.request.use(
     (config) => {
@@ -32,12 +38,9 @@ axiosInstance.interceptors.response.use(
         // Si l'erreur est un 401 (Unauthorized) ou 403 (Forbidden), cela peut indiquer un token invalide ou expiré
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
             console.error('Erreur d\'authentification (401/403). Déconnexion de l\'utilisateur.');
-            // Ne pas importer AuthService ici pour éviter les dépendances circulaires.
-            // La déconnexion doit être gérée par le AuthContext ou le composant appelant.
-            // Pour l'instant, on se contente de logguer l'erreur.
-            // Si vous voulez une déconnexion automatique ici, vous devrez
-            // gérer la logique de manière plus avancée (ex: en utilisant un événement global ou un hook).
-            // Pour ce cas, le AuthContext.jsx gère déjà la déconnexion si verifyToken échoue.
+            if (logoutCallback) {
+                logoutCallback();
+            }
         }
         return Promise.reject(error);
     }

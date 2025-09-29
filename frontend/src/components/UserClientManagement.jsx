@@ -17,6 +17,7 @@ const UserClientManagement = () => {
         telephone: '', adresse: '', password: '', // Password needed for creation
         role: 'employer' // Le rôle est toujours 'employer' pour la création par un admin_client
     });
+    const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
 
     /**
      * Récupère la liste des employés via l'API.
@@ -113,9 +114,14 @@ const UserClientManagement = () => {
     };
 
     // Gestionnaire de soumission pour le formulaire d'ajout de nouvel employé
-    const handleNewEmployeeSubmit = (e) => {
+    const handleNewEmployeeSubmit = async (e) => {
         e.preventDefault();
-        addEmployee(newEmployee);
+        setIsSubmitting(true);
+        try {
+            await addEmployee(newEmployee);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Gestionnaire de soumission pour le formulaire d'édition d'employé
@@ -144,7 +150,9 @@ const UserClientManagement = () => {
                     <input type="text" name="telephone" placeholder="Téléphone" value={newEmployee.telephone} onChange={handleNewEmployeeChange} />
                     <input type="text" name="adresse" placeholder="Adresse" value={newEmployee.adresse} onChange={handleNewEmployeeChange} />
                     {/* Le SIRET n'est pas pertinent pour un employé */}
-                    <button type="submit" className="add-button">Ajouter Employé</button>
+                    <button type="submit" className="add-button" disabled={isSubmitting}>
+                        {isSubmitting ? "Envoi en cours..." : "Ajouter Employé"}
+                    </button>
                 </form>
             </section>
 

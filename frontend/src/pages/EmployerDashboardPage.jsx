@@ -22,18 +22,17 @@ import { useAuth } from '../context/AuthContext';
 
 const EmployerDashboardPage = () => {
   // --- Utilisation de useAuth ---
-  const { user, isAuthenticated } = useAuth(); // Récupérer l'état d'authentification et l'objet user
+  const { user, isAuthenticated, error } = useAuth(); // Récupérer l'état d'authentification et l'objet user
   // --- FIN useAuth ---
 
   const [temperatureRecords, setTemperatureRecords] = useState([]);
-  const [loading, setLoading] = (true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [uniqueLocations, setUniqueLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('all');
 
   // --- ÉTATS POUR LES ALERTES ---
   const [alerts, setAlerts] = useState([]);
-  const [currentAlert, setCurrentAlert] = useState(null);
+  const [currentAlert, setCurrentAlert] = useState(null); // Pour l'alerte actuellement affichée en pop-up
   // --- FIN ÉTATS ALERTES ---
 
   // --- ÉTATS POUR LA TRAÇABILITÉ ---
@@ -61,9 +60,6 @@ const EmployerDashboardPage = () => {
     if (currentAlert) {
       try {
         await markAlertAsRead(currentAlert.id);
-        setAlerts(prevAlerts => prevAlerts.map(a =>
-          a.id === currentAlert.id ? { ...a, status: 'read' } : a
-        ));
         setCurrentAlert(null);
       } catch (error) {
         console.error('Erreur lors du marquage de l\'alerte comme lue pour l\'employé:', error);
@@ -75,7 +71,6 @@ const EmployerDashboardPage = () => {
 
   const fetchTemperatureRecords = async () => {
     setLoading(true);
-    setError('');
     try {
       const response = await axiosInstance.get('/employer/temperatures');
       setTemperatureRecords(response.data);
@@ -85,7 +80,6 @@ const EmployerDashboardPage = () => {
 
     } catch (err) {
       console.error('Erreur lors de la récupération de mes relevés:', err);
-      setError('Erreur lors de la récupération de mes relevés.');
     } finally {
       setLoading(false);
     }

@@ -379,4 +379,58 @@ button span:nth-child(4){
   color: #888;
 }
 
+/* Burger caché par défaut */
+.burger {
+  display: none;
+  flex-direction: column;
+  cursor: pointer;
+  margin-left: auto;
+  z-index: 1001;
+}
+.burger span {
+  width: 25px;
+  height: 3px;
+  background: white;
+  margin: 4px 0;
+  transition: 0.3s;
+}
+.burger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+.burger.open span:nth-child(2) { opacity: 0; }
+.burger.open span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
+
+/* Menu mobile caché par défaut */
+.mobile-menu {
+  display: none;
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: #111;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px;
+  z-index: 1000;
+  border-radius: 8px 0 0 8px;
+}
+.mobile-menu a,
+.mobile-menu button {
+  color: white;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.95rem;
+}
+.mobile-menu.active { display: flex; }
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+  .auth-buttons,
+  .auth-info-and-buttons {
+    display: none; /* cache tes boutons en mobile */
+  }
+  .burger {
+    display: flex; /* affiche le burger */
+  }
+}
+
+
 
