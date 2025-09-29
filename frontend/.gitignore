@@ -22,3 +22,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/firebase-admin-keys/hygiene1-664ad-firebase-adminsdk.json
